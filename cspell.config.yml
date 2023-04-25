@@ -3,7 +3,11 @@ cache:
   cacheLocation: node_modules/.cache/cspell/.cspell.cache
   cacheStrategy: metadata
   useCache: true
-language: en,eo,ja,lorem,node,npm,typescript
+dictionaries:
+  - node
+  - npm
+  - typescript
+language: en,eo,ja
 languageSettings:
   - allowCompoundWords: true
     caseSensitive: false
@@ -24,5 +28,6 @@ ignoreWords:
   - kurone
   - Kuroné
   - tsbuildinfo
+  - nextjs
 useGitignore: true
 version: '0.2'

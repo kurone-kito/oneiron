@@ -1,6 +1,9 @@
 name: The CI workflow on push
 on:
   push:
+    branches:
+      - '*'
+      - '!main'
 permissions:
   contents: read
 jobs:
@@ -10,11 +13,11 @@ jobs:
     steps:
       - name: Stages the pushed branch
         uses: actions/checkout@v3
-      - name: Prepare the Node.js version ${{ matrix.node-version }} environment
+      - name: Prepare the Node.js environment
         uses: actions/setup-node@v3
         with:
           cache: ${{ !env.ACT && 'yarn' || '' }}
-          node-version: ${{ matrix.node-version }}
+          node-version-file: .node-version
       - name: Enable the corepack because of the Yarn 3
         run: corepack enable
       - env:
@@ -23,10 +26,3 @@ jobs:
         run: yarn install --inline-builds
       - name: Run the tests
         run: yarn run test
-    strategy:
-      matrix:
-        node-version:
-          - 16.x
-          - 18.x
-          - 19.x
-          - 20.x
