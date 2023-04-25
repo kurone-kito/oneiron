@@ -1,230 +1,177 @@
-# 📄 Yarn project boilerplate
+# ⚔️ Dream Duels: The Battle for Oneiron
 
-## Features
+## 概要
 
-- Yarn with PnP
-- TypeScript
-- ESLint
-- Prettier
-- Visual Studio Code / Vim ready
-- CI / CD configurations
-  - Dependabot
-  - GitHub Actions
+テーブルトーク形式のバトルロワイヤルゲームを新規作成するにあたり、ゲームルールなどをこのリポジトリにまとめておく。
 
-## System Requirements
+以下は言わば企画書であり、仕様書でもある。
 
-- Node.js Gallium LTS (`^16.20.0`)
-- Yarn (`>=2.4.3`)
+## ストーリー
 
-## Install the dependencies
+突如として、プレイヤーたちは幻想的な夢の世界「オネイロン」に迷い込む。この神秘的な領域では、人々の夢を操る驚異的な力が覚醒し、現実世界では考えられない奇跡が起こる。だが、その美しい世界は邪悪な悪夢の王「ノクターン」が跋扈し、彼の手下たちがオネイロンの支配を画策していた。
 
-```sh
-yarn install
-```
+オネイロンを守る神秘の守護者「ルシード」は、プレイヤーたちがこの世界を救う運命の戦士であることを悟る。彼らに夢の力を操る勇者「ドリームウォーカー」としての力を授け、オネイロンの平和を取り戻す使命を託す。だが、ルシードには全員に十分な力を与えるだけの力がなく、プレイヤーたちがその力をいかに使いこなすか不安がよぎる。そこでルシードは、プレイヤーたちに試練を与える決断を下す。
 
-## Linting
+プレイヤーたちにまず仮想の力を授けて競い合わせ、最強の戦士たちを選び出す。そして、真のドリームウォーカーとしてオネイロンを救う使命を託すために、生き残った者たちに真の力を授ける。プレイヤーたちよ、オネイロンの運命をかけた戦いが始まる。最強のドリームウォーカーとなり、美しい夢の世界を守り抜け！
 
-```sh
-yarn run lint
-yarn run lint:fix # Lint and auto-fix
-```
+## ゲーム概要
 
-## Testing
+### プレイヤー数
 
-```sh
-yarn run test
-```
+- プレイ人数: 6〜12 人を推奨。理論上は 2〜20 人まで可能。
+- 追加で 1 人のゲームマスター。(プレイヤー兼任可能)
 
-Currently, the command works as an alias for the `yarn run lint` command.
+### プレイ時間
 
-## Cleaning
+- 10〜12 人を想定し、不慣れなプレイヤーが大半の場合、2.5 時間程度。
+- 同人数でも熟練プレイヤーがサクサク進めた場合、40 分程度を想定。
 
-```sh
-yarn run clean
-```
+### その他ゲームの特徴
 
-## Migrate to NPM
+- 少ないアイテム種類で構成された、三すくみによるチームデュエル
+- 原則 2 プレイヤーで 1 チームを構成する、バトルロワイヤル形式のゲーム進行
+- 最終的に生き残ったチームが勝利
 
-### 1. Remove following files
+## アイテム
 
-- `.yarn/`
-- `.yarnrc.yml`
-- `yarn.lock`
+- 各種カード
+  - 属性カード {3 x 13 x A} 枚
+    - 火・水・木: それぞれ同枚数。三すくみの関連性がある。
+    - 各属性カードには 1〜13 の数値がある。
+  - ジョーカー カード 2 枚
+- 各種トークン
+  - 番号トークン: 最大 10 枚
+    - 1〜10、各チーム番号と紐付く: メダルのような重い素材
+    - 下線を配置し、6 と 9 との誤読を防ぐ
+  - ライフトークン: 最大 40 枚
 
-### 2. Apply the following patches
+## 行程
 
-```diff
---- a/.github/workflows/push.yml
-+++ b/.github/workflows/push.yml
-@@ -13,16 +13,14 @@ jobs:
-       - name: Prepare the Node.js version ${{ matrix.node-version }} environment
-         uses: actions/setup-node@v2
-         with:
--          cache: ${{ !env.ACT && 'yarn' || '' }}
-+          cache: ${{ !env.ACT && 'npm' || '' }}
-           node-version: ${{ matrix.node-version }}
--      - name: Install the Yarn
--        run: npm install --global yarn@berry
-+      - name: set npm config
-+        run: npm config set unsafe-perm true
-       - env:
-           HUSKY: 0
-         name: Install the dependencies
--        run: yarn install --inline-builds
-+        run: npm ci
-       - name: Run the tests
--        run: yarn run test
-+        run: npm test
-     strategy:
-       matrix:
-         node-version:
-```
+- ラウンド 0 は初回のみ実行し、反復しない。
+- (任意) と表記のある箇所は、全員が経験者である場合、省略できる。
+- 協議と表記のある箇所はルールとしては定めない。関係者の合意が取れるなら立候補、ジャンケン、くじ引きなど、好きな手法を用いて良い。
 
-```diff
---- a/.husky/commit-msg
-+++ b/.husky/commit-msg
-@@ -4,4 +4,4 @@
+### ラウンド 0
 
- . "$(dirname "$0")/_/husky.sh"
+このラウンドは、事前準備と降下の 2 フェーズで構成する。
 
--yarn exec commitlint --edit "${1}"
-+npx --no-install commitlint --edit "${1}"
-```
+#### ラウンド 0: 事前準備フェーズ
 
-```diff
---- a/.husky/pre-commit
-+++ b/.husky/pre-commit
-@@ -4,4 +4,4 @@
+このフェーズでチームを編成し、初期アイテムを獲得する。
 
- . "$(dirname "$0")/_/husky.sh"
+1. 協議の上、プレイヤーから 1 人ゲームマスターを選出する。ゲームマスターはプレイヤーを兼任可能。
+2. プレイヤーは協議の上 2 人でペア チームを組む。
+   - 奇数の場合、ソロ チームが 1 つ発生する。
+   - （任意）ソロ チームが発生し得る場合、ゲームマスターは、その選択がハイリスク・ハイリターンであることを説明する。
+3. 前ステップと並行して、ゲームマスターは属性カードの山から各属性をそれぞれ {各チーム数の B 倍 + 2} 枚ずつ、加えてジョーカーカード 1 枚を抽出し、残りはシャッフルして山に戻す。
+   - 抽出した 3 属性のうち、それぞれ 2 枚は別に分けておく。これは次の降下フェーズで使用するためキープする。
+4. 2〜3 ステップが完了した時点で、ゲームマスターは以下を全て各チームへ配分する。
+   1. 番号トークン x1。このトークンに刻まれた番号がチーム番号となる。
+   2. ライフトークン x4。ただしソロ チームには x3。
+   3. 抽出した属性カードを開示し、それぞれ B 枚ずつ配分。
+   4. 山から各チーム均等に C 枚伏せて配分。
+   5. （ソロ チームのみ）ジョーカー x1。
+5. 各チームは受領したライフトークンをチームメンバーに均等配分する。ソロ チームは独り占めして良い。
 
--yarn exec pretty-quick --staged
-+npx --no-install pretty-quick --staged
-```
+#### ラウンド 0: 降下フェーズ
 
-```diff
---- a/.vim/coc-settings.json
-+++ b/.vim/coc-settings.json
-@@ -1,6 +1,4 @@
- {
--  "eslint.nodePath": ".yarn/sdks",
--  "eslint.packageManager": "yarn",
--  "tsserver.tsdk": ".yarn/sdks/typescript/lib",
-+  "tsserver.tsdk": "node_modules/typescript/lib",
-   "workspace.workspaceFolderCheckCwd": false
- }
-```
+このフェーズで、各チームの初期位置を決定する。
 
-```diff
---- a/.vscode/settings.json
-+++ b/.vscode/settings.json
-@@ -1,11 +1,6 @@
- {
--  "eslint.nodePath": ".yarn/sdks",
--  "eslint.packageManager": "yarn",
-   "files.watcherExclude": {
--    "**/.eslintcache": true,
--    "**/.pnp.*": true,
--    "**/.yarn/cache/**": true,
--    "**/.yarn/unplugged/**": true
-+    "**/.eslintcache": true
-   },
-   "json.schemas": [
-     {
-@@ -13,11 +8,6 @@
-       "url": "https://raw.githubusercontent.com/streetsidesoftware/cspell/main/packages/cspell-types/cspell.schema.json"
-     }
-   ],
--  "prettier.prettierPath": ".yarn/sdks/prettier/index.js",
--  "search.exclude": {
--    "**/.pnp.*": true,
--    "**/.yarn": true
--  },
-   "typescript.enablePromptUseWorkspaceTsdk": true,
--  "typescript.tsdk": ".yarn/sdks/typescript/lib"
-+  "typescript.tsdk": "node_modules/typescript/lib"
- }
-```
+1. （任意）ゲームマスターはゲーム開始を宣言し、ストーリーを読み上げる。
+2. 各チームは降り立つ場所を決定するため、ゲームマスターは控えておいた分類済み属性カードを取り、ユニークな 3 枚を 1 セットとし、2 セット作成する。
+3. ステップ 2 のセットをそれぞれシャッフルし、場の横軸・縦軸に伏せて並べ、3x3 のグリッドを構成する。グリッドはカード 1 枚相当のパディングをとって設置する。
+4. ステップ 2〜3 と並行して、各チームは手持ちから属性 or ジョーカーカードを 2 枚選出し、伏せて提出する。
+   - 属性カードは 2 枚とも、必ず左右に並べ、伏せて場に提出する。
+   - この際、カードの任意の 4 方向に置くことが可能。これが初期位置における向きとなる。
+     - 但し、2 枚のカードの向きを揃えなくてはならない。
+5. 3 および 4 が完了した段階で、ゲームマスターはグリッドの座標軸として伏せている属性カードを開示する。該当するカードの属性が座標となる。
+6. ゲームマスターの号令で、場に出した属性カードを一斉開示する。プレイヤーから左手側にあるカードが横軸、もう一方が縦軸となる。ジョーカーを提示した場合、該当する軸の座標を任意選択できる。
+7. 各チームは場に出した属性カードを重ね、向きを維持したまま該当する座標に開示状態で置き、ズレないよう自チームの番号トークンで重石にする。これがそのチームの初期位置となり、カードの向きはそのチームの向きとなる。以後、このカードとトークンはそのチームのコマとして機能する。
 
-```diff
---- a/cspell.config.yml
-+++ b/cspell.config.yml
-@@ -15,10 +15,8 @@ ignorePaths:
-   - .git/objects
-   - .github/CODE_OF_CONDUCT.*
-   - .vscode
--  - .yarn
-   - cspell.config.yml
-   - node_modules
--  - yarn.lock
- ignoreWords:
-   - kito
-   - kurone
-```
+### ラウンド 1 以降
 
-```diff
---- a/package.json
-+++ b/package.json
-@@ -15,15 +15,15 @@
-   "files": [],
-   "scripts": {
-     "clean": "rimraf -g \".eslintcache\" \"*.tgz\" \"*.tsbuildinfo\"",
--    "postinstall": "husky install",
--    "lint": "conc -m 1 \"yarn:lint:*:check\"",
-+    "lint": "conc -m 1 \"npm:lint:*:check\"",
-     "lint:eslint:check": "eslint --cache --cache-strategy=content -f codeframe \"./**/*\"",
--    "lint:eslint:fix": "yarn run lint:eslint:check --fix",
--    "lint:fix": "conc -m 1 \"yarn:lint:*:fix\"",
--    "lint:prettier:check": "yarn run prettier -cu",
--    "lint:prettier:fix": "yarn run prettier -uw",
--    "prettier": "prettier --cache --loglevel=warn \"$@\" \"./**/*\"",
--    "test": "yarn run lint"
-+    "lint:eslint:fix": "npm run lint:eslint:check -- --fix",
-+    "lint:fix": "conc -m 1 \"npm:lint:*:fix\"",
-+    "lint:prettier:check": "npm run prettier -- -cu",
-+    "lint:prettier:fix": "npm run prettier -- -uw",
-+    "prepare": "husky install",
-+    "prettier": "prettier --cache --loglevel=warn \"./**/*\"",
-+    "test": "npm run lint"
-   },
-   "prettier": "@kurone-kito/prettier-config",
-   "devDependencies": {
-@@ -35,7 +35,6 @@
-     "@kurone-kito/typescript-config": "^0.1.2",
-     "@typescript-eslint/eslint-plugin": "^5.56.0",
-     "@typescript-eslint/parser": "^5.56.0",
--    "@yarnpkg/sdks": "^3.0.0-rc.42",
-     "concurrently": "^7.6.0",
-     "eslint": "^8.38.0",
-     "eslint-config-airbnb-typescript": "^17.0.0",
-@@ -60,10 +59,8 @@
-     "typescript": "~5.0.4",
-     "typescript-eslint-language-service": "^5.0.5"
-   },
--  "packageManager": "yarn@3.5.0",
-   "engines": {
--    "node": ">=16.20",
--    "yarn": ">=2.4.3"
-+    "node": ">=16.20"
-   },
-   "publishConfig": {
-     "access": "public"
-```
+- 1 つのラウンドには、バトル、禁止エリア、移動、復活の 4 フェーズが存在する。
+- ここからはラウンド毎に各フェーズを反復して実行する。
+- 生存チームが 1 つのみになった時点でゲームは強制終了、そのチームがゲームの勝者となる。
 
-### 3. Run following command
+#### バトルフェーズ
 
-```sh
-npm install
-git add -A
-git commit -m "feat: migrate to NPM from Yarn"
-```
+1. エンカウントは、以下の順序で成立する。
+   1. 座標が完全一致する場合: グリッドに提示済みの属性カード番号における、合計が若い順にエンカウントする。
+      - 例: ペアの合計が各チーム 2・4・5・7・9 である場合、2 と 4、および 5 と 7 がエンカウントとなり、9 は次点となりエンカウントから漏れる。
+      - ジョーカーは番号 25 として扱う。
+   2. 座標が隣接する場合: i でエンカウントが成立しない場合、エンカウントする。
+   3. 上記 2 つの条件に一致しない場合、エンカウントしない。
+2. チーム内で協議の上、手持ちの属性カードを分け合う。一度分けたらバトルフェーズ終了までは片方の属性カードがなくなった場合を除き、融通禁止とする。
+3. 相手チームのメンバーと相対し、双方 2 名生きていれば、協議の上 1 vs 1 を決定する。そうでない場合、自動的に 1 vs 1 もしくは 1 vs 2 が成立する。
+4. グリッドに提出した番号ペアの合計が少ない方が先攻とする。同一である場合はチーム間の協議で定める。
+5. 先攻チームは、場に属性カードを 1 枚伏せて提示する。カードが尽きた場合、例外措置としてチームメンバーがカードを持っていればそれを 1 枚融通してもらう。それもない場合は提示を断念する。
+6. 後攻チームも 5 と同様に提示する。
+7. 互いに合図で開示する。火 → 木 → 水 →……の序列で三すくみが成立する。
+   - ジョーカーは無条件で勝ち。
+   - カードを提示できず、一方的にカードを出した場合、カードを出した方が勝ち。
+   - 双方カードを出さない場合、あいこ。
+   - 1 対 2 の場合、2 人チームは両方が個別に判定を受ける。
+8. カードの向きと数値の差で、ダメージ ポイントを決定する。以下に詳細を記す。
+   - 勝者は基本ポイントとして 1 ポイント、さらに以下いずれかに該当する場合 +1 ポイントを得る。
+     - 向きが相手と直交して**いない**、かつ同一座標である。
+     - 向きが相手と直交して**いない**、かつ相手に向いている、かつ隣接座標である。
+   - 勝利時は、さらにボーナスポイント・ペナルティポイントの算出を行う。
+     - ボーナスポイント: 以下の条件のいずれかに一致する場合、+1 ポイント。
+       - 自分のカードが相手のカードの番号の倍以上である場合
+       - 自分のカードが 13、かつ相手のカードが 7〜10 である場合
+       - 自分のカードが 2 以下、かつ相手のカードが 11 以上である場合
+     - ペナルティポイント: ボーナスポイントと逆の状況となった場合、-1 ポイント。
+     - ただし以下の状況は例外的な勝利とし、全てのポイント計算をスキップして 1 ポイント固定とする。
+       - ジョーカーで勝った場合
+       - 相手のカード不備で勝った場合
+   - あいこは双方 0 ポイント。
+9. 算出したダメージ ポイントを、相手のライフトークンで清算する。
+   - ダメージを受けた分のライフトークンは、自チームの座標にドロップする。
+   - 1 対 2 の場合、2 人チームは両方が個別にポイント計算を経て、清算を受ける。
+   - ライフトークンが無くなったプレイヤーはゲームから一時脱落する。
+   - 相手のライフトークンを全部奪ったプレイヤーは、相手の手持ちカードを全て開示し、それから 1 枚を奪い取り、残りは生き残りに渡す。
+   - ライフトークンで清算しきれないポイント数の場合、追加でポイント数の E 倍（数値未定）の相手の属性カードを選んで奪い取り、残りは生き残りに渡す。
+   - チームのメンバー全員のライフトークンが無くなった時点で、そのチームは敗北となり、ゲームオーバーが確定となる。グリッドから自チームの番号トークンと属性カード全部を撤去し、墓場に投棄する。
+     - この際、番号トークンは先に投棄されたトークンと並べて投棄する。{チーム総数 - 先着投棄順 + 1} で算出する値がチームの順位。
+10. 勝負に使用したカードは再使用できず、墓場に放棄する。
 
-## Rules for Development
+#### 禁止エリアフェーズ
 
-Introduce commit message validation at commit time.
-“**[Conventional Commits](https://www.conventionalcommits.org/ja/)**”
-rule is applied to discourage committing messages that violate conventions.
+1. ゲームマスターは山から 2 枚属性カードを引き、即座に開示する。1 枚目が横軸の座標、2 枚目が縦軸の座標に該当するセルが禁止エリアとなる。
+2. ゲームマスターは 1 で引いたカードを重ねて伏せ、新たな禁止エリアの座標に横向きに置く。すでに禁止エリアの場合、そのまま重ねる。これが禁止エリアの目印となる。
 
-## LICENSE
+#### 移動フェーズ
 
-MIT
+1. ゲームマスターは山から 1 枚属性カードを引き、即座に開示する。これが移動属性となる。
+2. 各チームはバトルフェーズでメンバー毎に一時分割した属性カードを統合する。
+3. 各チームはチーム内で協議の上、移動のための属性カードを伏せて提示する。ここで任意の 4 方向に向けて良い。
+   - 手持ちカードがない場合は、山から 2 枚引き、そのうちの 1 枚を移動に使用し、残りを手持ちとする。
+4. チームが全員カードを提示できた段階で、ゲームマスターが合図を放ち、各チームは一斉に場に出したカードを開示する。この際向きを変えてはならない。
+5. 開示した属性に従い、移動を開始する。
+   - 移動属性の場合、ステップ 3 の向きを無視して、グリッドに配置している自チームのカードの向きへ、番号トークンもろとも 1 セル分進める。
+   - それ以外の場合、グリッドに配置している自チームのカードの向きをステップ 3 の向きに合わせて回転させる。
+6. グリッドに配置している属性カードのうち、いずれか任意の一枚を新たに提示したカードに差し替え、旧カードを墓場に投棄する。
+7. 全員の移動を完了した時点で、禁止エリアの判定を行う。禁止エリア座標、もしくはグリッド外に出ているチームから、1 ポイントのライフトークンを清算する。
+   - どちらが清算するかはチーム内で協議の上決める。
+   - 清算後トークンが無くなった場合の扱いはバトルフェーズと同じ。但し自滅のため、カードの強奪は発生しない。
+
+#### 復活フェーズ
+
+1. 自チームの座標にライフトークンがあり、かつ以下条件のいずれかに該当する場合、そのライフトークンを 1 つだけ入手できる。
+   - 自チームの座標に他チームが存在しないか、すでに排除済みである場合
+   - 自チームの座標に他チームが存在するが、順番待ちでエンカウントが確定しなかった場合
+2. 入手したライフトークンは以下の用途で消費する。
+   - 脱落メンバーのサルベージ: 入手したライフトークンを復活したメンバーにそのまま割り当てる。つまりライフ 1 の状態で再スタート。また、ボーナスとして山から新しい属性カードを 1 枚得られる。
+   - ライフのチャージ: 入手したライフトークンを、そのまま自分のライフとして使用できる。但し、上限は 4。
+   - 属性カードのチャージ: 山から新しい属性カードを 3 枚得られる。
+
+## 変数
+
+### 定義
+
+- A: アイテムの属性カードにおける、種類・数字含めて完全同一の枚数
+- B: 各属性カードの山から抽出する際の、チーム数の倍数
+- C: ランダムな属性カードを各チーム均等に配分する枚数
+- D: 単一バトルフェーズの時間(単位: 分)
+- E: ポイント清算時、ライフで支払えない場合のカード強奪枚数の倍数

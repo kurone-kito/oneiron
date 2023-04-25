@@ -821,31 +821,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@kurone-kito/prettier-config@npm:^0.3.4":
-  version: 0.3.4
-  resolution: "@kurone-kito/prettier-config@npm:0.3.4"
-  peerDependencies:
-    prettier: ^2.8.8
-    prettier-plugin-packagejson: ^2.4.3
-    prettier-plugin-sh: ^0.12.8
-    prettier-plugin-sort-json: ^1.0.0
-  checksum: cf1bc10ec232e5b47810cf205d682ad1261730e3d946d398361acb69e8e61a84cf43e36443f87fbf79e67bfa7d5a7f11e5c633293364aab7cf65a2c08d1cf052
-  languageName: node
-  linkType: hard
-
-"@kurone-kito/typescript-config@npm:^0.3.4":
-  version: 0.3.4
-  resolution: "@kurone-kito/typescript-config@npm:0.3.4"
-  peerDependencies:
-    typescript: ~5.0.4
-    typescript-eslint-language-service: ^5.0.5
-  checksum: 24b2f998ed308a60fabff2eb4d499cfe433e22c678cd6b05b0e662447abb27aa82342bdb71e30be3f1a1d4e73d5d81fff3d581e705cb8fb65592b5f96b01001f
-  languageName: node
-  linkType: hard
-
-"@kurone-kito/yarn-project-boilerplate@workspace:.":
+"@kurone-kito/oneiron@workspace:.":
   version: 0.0.0-use.local
-  resolution: "@kurone-kito/yarn-project-boilerplate@workspace:."
+  resolution: "@kurone-kito/oneiron@workspace:."
   dependencies:
     "@commitlint/cli": ^17.6.3
     "@commitlint/config-conventional": ^17.6.3
@@ -882,6 +860,28 @@ __metadata:
     typescript-eslint-language-service: ^5.0.5
   languageName: unknown
   linkType: soft
+
+"@kurone-kito/prettier-config@npm:^0.3.4":
+  version: 0.3.4
+  resolution: "@kurone-kito/prettier-config@npm:0.3.4"
+  peerDependencies:
+    prettier: ^2.8.8
+    prettier-plugin-packagejson: ^2.4.3
+    prettier-plugin-sh: ^0.12.8
+    prettier-plugin-sort-json: ^1.0.0
+  checksum: cf1bc10ec232e5b47810cf205d682ad1261730e3d946d398361acb69e8e61a84cf43e36443f87fbf79e67bfa7d5a7f11e5c633293364aab7cf65a2c08d1cf052
+  languageName: node
+  linkType: hard
+
+"@kurone-kito/typescript-config@npm:^0.3.4":
+  version: 0.3.4
+  resolution: "@kurone-kito/typescript-config@npm:0.3.4"
+  peerDependencies:
+    typescript: ~5.0.4
+    typescript-eslint-language-service: ^5.0.5
+  checksum: 24b2f998ed308a60fabff2eb4d499cfe433e22c678cd6b05b0e662447abb27aa82342bdb71e30be3f1a1d4e73d5d81fff3d581e705cb8fb65592b5f96b01001f
+  languageName: node
+  linkType: hard
 
 "@nodelib/fs.scandir@npm:2.1.5":
   version: 2.1.5
