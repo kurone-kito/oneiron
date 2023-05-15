@@ -1,6 +1,13 @@
 extends:
-  - '@kurone-kito/eslint-config-base'
+  - next/core-web-vitals
+  - '@kurone-kito/eslint-config-react'
 parserOptions:
   project:
-    - './tsconfig.json'
+    - './tsconfig.eslint.json'
 root: true
+rules:
+  import/extensions:
+    - error
+    - never
+    - js: ignorePackages
+      json: ignorePackages

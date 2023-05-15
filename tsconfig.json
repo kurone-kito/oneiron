@@ -1,8 +1,25 @@
 {
   "compilerOptions": {
     "allowJs": true,
+    "forceConsistentCasingInFileNames": true,
+    "incremental": true,
+    "jsx": "preserve",
+    "lib": ["dom", "dom.iterable", "esnext"],
+    "module": "ESNext",
+    "moduleResolution": "node",
     "noEmit": true,
+    "plugins": [
+      {
+        "name": "next"
+      },
+      {
+        "name": "typescript-eslint-language-service"
+      }
+    ],
+    "skipLibCheck": true,
     "target": "ESNext"
   },
-  "extends": "@kurone-kito/typescript-config/tsconfig.json"
+  "exclude": [".yarn", "node_modules"],
+  "extends": "@kurone-kito/typescript-config/tsconfig.json",
+  "include": ["next-env.d.ts", ".next/types/**/*.ts", "**/*.ts", "**/*.tsx"]
 }

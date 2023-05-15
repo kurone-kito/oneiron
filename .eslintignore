@@ -343,6 +343,9 @@ $RECYCLE.BIN/
 .eslintrc.js
 .eslintrc.cjs
 
+# CSS
+*.css
+
 # JSON
 *.json
 
