@@ -1,13 +1,15 @@
 import type { FC } from 'react';
+import { Footer } from '../components/atoms/Footer';
 
 /**
  * The home page.
  * @returns The home page.
  */
 const Home: FC = () => (
-  <main className="flex min-h-screen flex-col items-center justify-between p-24">
-    Hello, World!
-  </main>
+  <div className="flex min-w-screen min-h-screen flex-col">
+    <main className="flex-grow text-center">Hello, World!</main>
+    <Footer />
+  </div>
 );
 
 export default Home;
