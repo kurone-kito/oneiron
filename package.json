@@ -14,7 +14,9 @@
   "type": "module",
   "files": [],
   "scripts": {
-    "clean": "rimraf -g \".eslintcache\" \"*.tgz\" \"*.tsbuildinfo\"",
+    "build": "next build",
+    "clean": "rimraf -g \".eslintcache\" \".next\" \"*.tgz\" \"*.tsbuildinfo\" \"next-env.d.ts\" \"out\"",
+    "dev": "next dev",
     "postinstall": "husky install",
     "lint": "conc -m 1 \"yarn:lint:*:check\"",
     "lint:eslint:check": "eslint --cache --cache-strategy=content -f codeframe \"./**/*\"",
@@ -23,7 +25,8 @@
     "lint:prettier:check": "yarn run prettier -cu",
     "lint:prettier:fix": "yarn run prettier -uw",
     "prettier": "prettier --cache --loglevel=warn \"$@\" \"./**/*\"",
-    "test": "yarn run lint"
+    "start": "next start",
+    "test": "tsc"
   },
   "prettier": "@kurone-kito/prettier-config",
   "dependencies": {
