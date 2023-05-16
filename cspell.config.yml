@@ -28,6 +28,7 @@ ignoreWords:
   - kito
   - kurone
   - Kuroné
+  - nextjs
   - tsbuildinfo
   - nextjs
 useGitignore: true
