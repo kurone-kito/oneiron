@@ -2,8 +2,7 @@ name: The CI workflow on push
 on:
   push:
     branches:
-      - '*'
-      - '!main'
+      - main
 permissions:
   contents: read
 jobs:
@@ -26,7 +25,8 @@ jobs:
         run: yarn install --inline-builds
       - name: Run the builds
         run: yarn run build
-      - name: Run the syntax check
-        run: yarn run lint
-      - name: Run the tests
-        run: yarn run test
+      - name: Deploy the build result.
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./out
