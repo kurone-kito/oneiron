@@ -17,7 +17,8 @@
       }
     ],
     "skipLibCheck": true,
-    "target": "ESNext"
+    "target": "ESNext",
+    "types": ["jest"]
   },
   "exclude": [".yarn", "node_modules"],
   "extends": "@kurone-kito/typescript-config/tsconfig.json",
