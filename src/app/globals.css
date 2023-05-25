@@ -10,4 +10,8 @@
   .card-text-joker {
     @apply font-bold text-center text-pink-500 text-xs tracking-wide;
   }
+
+  .card-text-pip-rank {
+    @apply flex justify-between;
+  }
 }
