@@ -6,4 +6,8 @@
   .card {
     @apply aspect-card rounded w-20;
   }
+
+  .card-text-joker {
+    @apply font-bold text-center text-pink-500 text-xs tracking-wide;
+  }
 }
