@@ -2,7 +2,8 @@
   "compilerOptions": {
     "allowJs": true,
     "noEmit": true,
-    "target": "ESNext"
+    "target": "ESNext",
+    "types": ["jest"]
   },
   "extends": "@kurone-kito/typescript-config/tsconfig.json"
 }
