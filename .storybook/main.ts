@@ -3,14 +3,11 @@ import type { StorybookConfig } from '@storybook/nextjs';
 
 const config: StorybookConfig = {
   addons: [
-    dirname(require.resolve(join('@storybook/addon-links', 'package.json'))),
-    dirname(
-      require.resolve(join('@storybook/addon-essentials', 'package.json'))
-    ),
-    dirname(
-      require.resolve(join('@storybook/addon-interactions', 'package.json'))
-    ),
-  ],
+    '@storybook/addon-links',
+    '@storybook/addon-essentials',
+    '@storybook/addon-interactions',
+    '@storybook/addon-styling',
+  ].map((pkg) => dirname(require.resolve(join(pkg, 'package.json')))),
   docs: { autodocs: 'tag' },
   features: {
     argTypeTargetsV7: true,
