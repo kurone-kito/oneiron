@@ -25,13 +25,15 @@ export const PipCard: FC<PipCardProps> = ({ rank, suit }) => {
   const [icon, color] = suitMap[suit];
   return (
     <CardFace align>
-      <div className="card-text-pip-rank rotate-180">
+      <div className="card-text-pip-rank transition-transform rotate-180">
         <RankLabel>{rank}</RankLabel>
+        <span className="text-xs text-stone-200">▼</span>
         <RankLabel>{rank}</RankLabel>
       </div>
       <FontAwesomeIcon icon={icon} className={classNames('text-4xl', color)} />
       <div className="card-text-pip-rank">
         <RankLabel>{rank}</RankLabel>
+        <span className="text-xs text-stone-200">▲</span>
         <RankLabel>{rank}</RankLabel>
       </div>
     </CardFace>

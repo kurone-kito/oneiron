@@ -7,6 +7,14 @@
     @apply aspect-card rounded w-20;
   }
 
+  .card-container {
+    @apply absolute backface-hidden duration-300 rounded transform-gpu transition-all;
+  }
+
+  .card-root {
+    @apply aspect-card relative w-20 perspective-[12rem];
+  }
+
   .card-text-joker {
     @apply font-bold text-center text-pink-500 text-xs tracking-wide;
   }
