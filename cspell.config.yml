@@ -29,5 +29,6 @@ ignoreWords:
   - Kuroné
   - tsbuildinfo
   - nextjs
+  - remeda
 useGitignore: true
 version: '0.2'
