@@ -28,7 +28,7 @@
   "prettier": "@kurone-kito/prettier-config",
   "devDependencies": {
     "@commitlint/cli": "^17.5.1",
-    "@commitlint/config-conventional": "^17.4.4",
+    "@commitlint/config-conventional": "^17.6.5",
     "@cspell/eslint-plugin": "^6.31.1",
     "@kurone-kito/eslint-config-base": "^0.2.7",
     "@kurone-kito/prettier-config": "^0.2.7",
