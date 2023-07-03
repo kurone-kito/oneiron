@@ -1,15 +1,10 @@
 import type { FC } from 'react';
-import { Footer } from '../components/atoms/Footer';
+import { Frame } from '../components/templates/Frame';
 
 /**
  * The home page.
  * @returns The home page.
  */
-const Home: FC = () => (
-  <div className="flex min-w-screen min-h-screen flex-col">
-    <main className="flex-grow text-center">Hello, World!</main>
-    <Footer />
-  </div>
-);
+const Home: FC = () => <Frame>Hello, World!</Frame>;
 
 export default Home;
