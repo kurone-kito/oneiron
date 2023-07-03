@@ -1,23 +1,24 @@
 {
   "eslint.nodePath": ".yarn/sdks",
-  "eslint.packageManager": "yarn",
   "files.watcherExclude": {
     "**/.eslintcache": true,
     "**/.pnp.*": true,
     "**/.yarn/cache/**": true,
     "**/.yarn/unplugged/**": true
   },
-  "json.schemas": [
-    {
-      "fileMatch": [".cspell.yml"],
-      "url": "https://raw.githubusercontent.com/streetsidesoftware/cspell/main/packages/cspell-types/cspell.schema.json"
-    }
-  ],
   "prettier.prettierPath": ".yarn/sdks/prettier/index.js",
   "search.exclude": {
     "**/.pnp.*": true,
     "**/.yarn": true
   },
   "typescript.enablePromptUseWorkspaceTsdk": true,
-  "typescript.tsdk": ".yarn/sdks/typescript/lib"
+  "typescript.tsdk": ".yarn/sdks/typescript/lib",
+  "yaml.schemas": {
+    "https://raw.githubusercontent.com/reviewpad/schemas/main/latest/schema.json": [
+      "reviewpad.yml"
+    ],
+    "https://raw.githubusercontent.com/streetsidesoftware/cspell/main/packages/cspell-types/cspell.schema.json": [
+      "cspell.config.yml"
+    ]
+  }
 }
