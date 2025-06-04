@@ -16,10 +16,9 @@
 
 If you discover a security vulnerability within this project, please report
 it by issuing a
-[pull request with a fix](https://github.com/kurone-kito/pnpm-project-template/pulls)
-or
-[opening an issue](https://github.com/kurone-kito/pnpm-project-template/issues)
-with the “security” label.
+[pull request with a fix](https://github.com/kurone-kito/oneiron/pulls) or
+[opening an issue](https://github.com/kurone-kito/oneiron/issues) with the
+“security” label.
 
 Your contributions to improving the security of this project are greatly
 appreciated.
