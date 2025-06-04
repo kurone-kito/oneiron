@@ -1,12 +1,12 @@
 {
-  "name": "@kurone-kito/pnpm-project-template",
+  "name": "@kurone-kito/oneiron",
   "version": "0.1.0",
   "private": true,
-  "description": "The boilerplate project of the Node.js",
-  "keywords": ["boilerplate", "pnpm", "template"],
-  "homepage": "https://github.com/kurone-kito/pnpm-project-template#readme",
-  "bugs": "https://github.com/kurone-kito/pnpm-project-template/issues",
-  "repository": "github:kurone-kito/pnpm-project-template",
+  "description": "Dream Duels: The Battle for Oneiron",
+  "keywords": ["cardgame", "oneiron", "simulator", "tabletalk"],
+  "homepage": "https://github.com/kurone-kito/oneiron#readme",
+  "bugs": "https://github.com/kurone-kito/oneiron/issues",
+  "repository": "github:kurone-kito/oneiron",
   "license": "MIT",
   "author": "kurone-kito <krone@kit.black> (https://kit.black/)",
   "type": "module",
@@ -43,7 +43,7 @@
   },
   "packageManager": "pnpm@10.11.1+sha512.e519b9f7639869dc8d5c3c5dfef73b3f091094b0a006d7317353c72b124e80e1afd429732e28705ad6bfa1ee879c1fce46c128ccebd3192101f43dd67c667912",
   "engines": {
-    "node": "^20.11 || >=22"
+    "node": ">=22"
   },
   "publishConfig": {
     "access": "public"
