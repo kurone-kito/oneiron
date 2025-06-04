@@ -1,23 +1,35 @@
 {
-  "eslint.nodePath": ".yarn/sdks",
-  "eslint.packageManager": "yarn",
-  "files.watcherExclude": {
-    "**/.eslintcache": true,
-    "**/.pnp.*": true,
-    "**/.yarn/cache/**": true,
-    "**/.yarn/unplugged/**": true
+  "explorer.fileNesting.enabled": true,
+  "explorer.fileNesting.expand": false,
+  "explorer.fileNesting.patterns": {
+    "*.md": "${capture}.*.md",
+    ".gitattributes": ".gitignore",
+    ".markdownlint.*": ".markdownlint-cli2.*",
+    ".tool-versions": ".node-version, .nvmrc",
+    "package.json": ".npmrc, pnpm-lock.yaml, pnpm-workspace.yaml",
+    "tsconfig.json": "*.tsbuildinfo"
   },
-  "json.schemas": [
-    {
-      "fileMatch": [".cspell.yml"],
-      "url": "https://raw.githubusercontent.com/streetsidesoftware/cspell/main/packages/cspell-types/cspell.schema.json"
-    }
-  ],
-  "prettier.prettierPath": ".yarn/sdks/prettier/index.js",
+  "files.associations": {
+    ".imgbotconfig": "json",
+    "LICENSE": "plaintext"
+  },
+  "files.readonlyInclude": {
+    "**/node_modules/**/*": true
+  },
+  "files.watcherExclude": {
+    "**/node_modules/**/*": true
+  },
+  "git.branchProtection": ["main"],
   "search.exclude": {
-    "**/.pnp.*": true,
-    "**/.yarn": true
+    "**/node_modules/**/*": true
   },
   "typescript.enablePromptUseWorkspaceTsdk": true,
-  "typescript.tsdk": ".yarn/sdks/typescript/lib"
+  "yaml.schemas": {
+    "https://raw.githubusercontent.com/streetsidesoftware/cspell/main/packages/cspell-types/cspell.schema.json": [
+      "cspell.config.yml"
+    ],
+    "https://storage.googleapis.com/coderabbit_public_assets/schema.v2.json": [
+      ".coderabbit.yaml"
+    ]
+  }
 }
