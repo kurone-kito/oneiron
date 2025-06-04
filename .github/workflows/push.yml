@@ -40,6 +40,8 @@ jobs:
           HUSKY: 0
         name: Install the dependencies
         run: pnpm i --prefer-frozen-lockfile
+      - name: Build the project
+        run: pnpm run build
       - name: Run the tests
         run: pnpm run test
     strategy:

@@ -268,6 +268,12 @@ corepack install
 pnpm install
 ```
 
+### ビルド
+
+```sh
+pnpm run build
+```
+
 ### クリーンアップ
 
 ```sh
