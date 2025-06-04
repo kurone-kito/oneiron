@@ -11,8 +11,15 @@
   "author": "kurone-kito <krone@kit.black> (https://kit.black/)",
   "type": "module",
   "files": [],
+  "workspaces": {
+    "packages": ["./packages/*"]
+  },
   "scripts": {
-    "clean": "rimraf -g \"*.tgz\" \"*.tsbuildinfo\" node_modules/.cache",
+    "build": "pnpm run -r build",
+    "clean": "pnpm run --no-bail \"/^clean:.+/\"",
+    "clean:root": "rimraf -g \"*.tgz\" \"*.tsbuildinfo\" node_modules/.cache",
+    "clean:sub": "pnpm run --parallel --workspace-concurrency=Infinity -r clean",
+    "dev": "pnpm run --parallel --workspace-concurrency=Infinity -r dev",
     "lint": "pnpm run \"/lint:.+:check/\"",
     "lint:biome:check": "biome check",
     "lint:biome:fix": "biome check --write",
@@ -21,7 +28,7 @@
     "lint:markdown:check": "markdownlint-cli2 \"**/*.md\"",
     "lint:markdown:fix": "markdownlint-cli2 --fix \"**/*.md\"",
     "prepare": "husky",
-    "test": "pnpm run lint"
+    "test": "pnpm run -r test"
   },
   "devDependencies": {
     "@biomejs/biome": "^1.9.4",
