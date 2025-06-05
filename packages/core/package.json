@@ -1,0 +1,24 @@
+{
+  "name": "@kurone-kito/oneiron-core",
+  "version": "0.1.0",
+  "private": true,
+  "description": "The core logic for the Oneiron card game",
+  "keywords": ["cardgame", "oneiron", "simulator", "tabletalk"],
+  "homepage": "https://github.com/kurone-kito/oneiron#readme",
+  "bugs": "https://github.com/kurone-kito/oneiron/issues",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/kurone-kito/oneiron.git",
+    "directory": "packages/core"
+  },
+  "license": "MIT",
+  "author": "kurone-kito <krone@kit.black> (https://kit.black/)",
+  "type": "module",
+  "files": [],
+  "devDependencies": {
+    "@kurone-kito/oneiron-vite-config": "workspace:^"
+  },
+  "engines": {
+    "node": "^22 || >=24"
+  }
+}

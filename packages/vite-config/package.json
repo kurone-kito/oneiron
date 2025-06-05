@@ -1,0 +1,21 @@
+{
+  "name": "@kurone-kito/oneiron-vite-config",
+  "version": "0.1.0",
+  "private": true,
+  "description": "The Vite configuration for the Oneiron card game",
+  "keywords": ["cardgame", "oneiron", "simulator", "tabletalk"],
+  "homepage": "https://github.com/kurone-kito/oneiron#readme",
+  "bugs": "https://github.com/kurone-kito/oneiron/issues",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/kurone-kito/oneiron.git",
+    "directory": "packages/vite-config"
+  },
+  "license": "MIT",
+  "author": "kurone-kito <krone@kit.black> (https://kit.black/)",
+  "type": "module",
+  "files": [],
+  "engines": {
+    "node": "^22 || >=24"
+  }
+}

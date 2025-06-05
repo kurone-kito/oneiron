@@ -1,1 +1,5 @@
-{ "files": [], "references": [] }
+{
+  "compilerOptions": { "noEmit": true },
+  "extends": "@kurone-kito/typescript-config/tsconfig.json",
+  "include": ["./**/*.mjs", "./**/*.mts"]
+}

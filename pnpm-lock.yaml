@@ -57,6 +57,37 @@ importers:
         specifier: ~5.8.3
         version: 5.8.3
 
+  packages/bot-simple:
+    dependencies:
+      '@kurone-kito/oneiron-core':
+        specifier: workspace:^
+        version: link:../core
+    devDependencies:
+      '@kurone-kito/oneiron-vite-config':
+        specifier: workspace:^
+        version: link:../vite-config
+
+  packages/core:
+    devDependencies:
+      '@kurone-kito/oneiron-vite-config':
+        specifier: workspace:^
+        version: link:../vite-config
+
+  packages/simulator:
+    dependencies:
+      '@kurone-kito/oneiron-bot-simple':
+        specifier: workspace:^
+        version: link:../bot-simple
+      '@kurone-kito/oneiron-core':
+        specifier: workspace:^
+        version: link:../core
+    devDependencies:
+      '@kurone-kito/oneiron-vite-config':
+        specifier: workspace:^
+        version: link:../vite-config
+
+  packages/vite-config: {}
+
 packages:
 
   '@babel/code-frame@7.27.1':
