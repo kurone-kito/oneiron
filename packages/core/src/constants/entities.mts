@@ -1,4 +1,4 @@
-import type { ReadonlyRecord } from '../index.mjs';
+import type { ReadonlyRecord, Suit } from '../index.mjs';
 
 /** The direction constants. */
 export const directions = ['east', 'north', 'south', 'west'] as const;
@@ -18,4 +18,4 @@ export const dominance = {
   fire: 'wood',
   wood: 'water',
   water: 'fire',
-} as const as ReadonlyRecord<(typeof suits)[number], (typeof suits)[number]>;
+} as const as ReadonlyRecord<Suit, Suit>;
