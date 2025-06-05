@@ -28,7 +28,7 @@
     "lint:markdown:check": "markdownlint-cli2 \"**/*.md\"",
     "lint:markdown:fix": "markdownlint-cli2 --fix \"**/*.md\"",
     "prepare": "husky",
-    "test": "pnpm run -r test"
+    "test": "pnpm run -r test && tsc --noEmit"
   },
   "devDependencies": {
     "@biomejs/biome": "^1.9.4",

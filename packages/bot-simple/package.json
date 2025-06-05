@@ -14,16 +14,23 @@
   "license": "MIT",
   "author": "kurone-kito <krone@kit.black> (https://kit.black/)",
   "type": "module",
-  "files": [],
+  "exports": "./dist/index.mjs",
+  "types": "./dist/index.d.mts",
+  "files": ["dist"],
   "scripts": {
-    "clean": "rimraf -g \"*.tgz\" node_modules/.cache"
+    "build": "tsc",
+    "clean": "rimraf -g \"*.tgz\" \"*.tsbuildinfo\" dist node_modules/.cache",
+    "dev": "tsc --watch",
+    "test": "tsc --noEmit"
   },
   "dependencies": {
     "@kurone-kito/oneiron-core": "workspace:^"
   },
   "devDependencies": {
     "@kurone-kito/oneiron-vite-config": "workspace:^",
-    "rimraf": "^6.0.1"
+    "@kurone-kito/typescript-config": "^0.19.0-alpha.1",
+    "rimraf": "^6.0.1",
+    "typescript": "~5.8.3"
   },
   "engines": {
     "node": "^22 || >=24"
