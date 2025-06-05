@@ -66,18 +66,30 @@ importers:
       '@kurone-kito/oneiron-vite-config':
         specifier: workspace:^
         version: link:../vite-config
+      '@kurone-kito/typescript-config':
+        specifier: ^0.19.0-alpha.1
+        version: 0.19.0-alpha.1(typescript@5.8.3)
       rimraf:
         specifier: ^6.0.1
         version: 6.0.1
+      typescript:
+        specifier: ~5.8.3
+        version: 5.8.3
 
   packages/core:
     devDependencies:
       '@kurone-kito/oneiron-vite-config':
         specifier: workspace:^
         version: link:../vite-config
+      '@kurone-kito/typescript-config':
+        specifier: ^0.19.0-alpha.1
+        version: 0.19.0-alpha.1(typescript@5.8.3)
       rimraf:
         specifier: ^6.0.1
         version: 6.0.1
+      typescript:
+        specifier: ~5.8.3
+        version: 5.8.3
 
   packages/simulator-cli:
     dependencies:
@@ -91,15 +103,27 @@ importers:
       '@kurone-kito/oneiron-vite-config':
         specifier: workspace:^
         version: link:../vite-config
+      '@kurone-kito/typescript-config':
+        specifier: ^0.19.0-alpha.1
+        version: 0.19.0-alpha.1(typescript@5.8.3)
       rimraf:
         specifier: ^6.0.1
         version: 6.0.1
+      typescript:
+        specifier: ~5.8.3
+        version: 5.8.3
 
   packages/vite-config:
     devDependencies:
+      '@kurone-kito/typescript-config':
+        specifier: ^0.19.0-alpha.1
+        version: 0.19.0-alpha.1(typescript@5.8.3)
       rimraf:
         specifier: ^6.0.1
         version: 6.0.1
+      typescript:
+        specifier: ~5.8.3
+        version: 5.8.3
 
 packages:
 
