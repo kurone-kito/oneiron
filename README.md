@@ -277,6 +277,10 @@ corepack install
 pnpm install
 ```
 
+ビルド前により実行ファイルがないために依存関係解決時に発生する、
+エラーを回避するため `pnpm:devPreinstall` ライフサイクルで
+`simulator-cli` パッケージの実行ファイルを仮生成している。
+
 ### ビルド
 
 ```sh
@@ -297,8 +301,6 @@ pnpm run lint:fix # 自動修正
 ```
 
 ### テスト
-
-現状は `lint` のエイリアスです。
 
 ```sh
 pnpm run test

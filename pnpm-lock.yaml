@@ -35,6 +35,9 @@ importers:
       '@kurone-kito/markdownlint-config':
         specifier: ^0.19.0-alpha.1
         version: 0.19.0-alpha.1
+      '@kurone-kito/oneiron-simulator-cli':
+        specifier: workspace:^
+        version: link:packages/simulator-cli
       '@kurone-kito/typescript-config':
         specifier: ^0.19.0-alpha.1
         version: 0.19.0-alpha.1(typescript@5.8.3)

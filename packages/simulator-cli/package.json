@@ -14,8 +14,9 @@
   "license": "MIT",
   "author": "kurone-kito <krone@kit.black> (https://kit.black/)",
   "type": "module",
-  "exports": "./dist/index.mjs",
-  "types": "./dist/index.d.mts",
+  "bin": {
+    "oneiron": "./dist/index.mjs"
+  },
   "files": ["dist"],
   "scripts": {
     "build": "tsc",
