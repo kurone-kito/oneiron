@@ -66,12 +66,18 @@ importers:
       '@kurone-kito/oneiron-vite-config':
         specifier: workspace:^
         version: link:../vite-config
+      rimraf:
+        specifier: ^6.0.1
+        version: 6.0.1
 
   packages/core:
     devDependencies:
       '@kurone-kito/oneiron-vite-config':
         specifier: workspace:^
         version: link:../vite-config
+      rimraf:
+        specifier: ^6.0.1
+        version: 6.0.1
 
   packages/simulator:
     dependencies:
@@ -85,8 +91,15 @@ importers:
       '@kurone-kito/oneiron-vite-config':
         specifier: workspace:^
         version: link:../vite-config
+      rimraf:
+        specifier: ^6.0.1
+        version: 6.0.1
 
-  packages/vite-config: {}
+  packages/vite-config:
+    devDependencies:
+      rimraf:
+        specifier: ^6.0.1
+        version: 6.0.1
 
 packages:
 

@@ -15,12 +15,16 @@
   "author": "kurone-kito <krone@kit.black> (https://kit.black/)",
   "type": "module",
   "files": [],
+  "scripts": {
+    "clean": "rimraf -g \"*.tgz\" node_modules/.cache"
+  },
   "dependencies": {
     "@kurone-kito/oneiron-bot-simple": "workspace:^",
     "@kurone-kito/oneiron-core": "workspace:^"
   },
   "devDependencies": {
-    "@kurone-kito/oneiron-vite-config": "workspace:^"
+    "@kurone-kito/oneiron-vite-config": "workspace:^",
+    "rimraf": "^6.0.1"
   },
   "engines": {
     "node": "^22 || >=24"
