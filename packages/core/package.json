@@ -16,9 +16,13 @@
   "type": "module",
   "files": [],
   "scripts": {
-    "clean": "rimraf -g \"*.tgz\" node_modules/.cache"
+    "build": "tsc",
+    "clean": "rimraf -g \"*.tgz\" \"*.tsbuildinfo\" dist node_modules/.cache",
+    "dev": "tsc --watch"
   },
   "devDependencies": {
-    "rimraf": "^6.0.1"
+    "@kurone-kito/typescript-config": "^0.18.0",
+    "rimraf": "^6.0.1",
+    "typescript": "~5.8.3"
   }
 }
