@@ -87,6 +87,9 @@ importers:
       typescript:
         specifier: ~5.8.3
         version: 5.8.3
+      vite:
+        specifier: ^6.3.5
+        version: 6.3.5(@types/node@22.15.29)(jiti@2.4.2)(yaml@2.8.0)
       vitest:
         specifier: ^3.2.2
         version: 3.2.2(@types/debug@4.1.12)(@types/node@22.15.30)(jiti@2.4.2)(yaml@2.8.0)
@@ -108,6 +111,9 @@ importers:
       typescript:
         specifier: ~5.8.3
         version: 5.8.3
+      vite:
+        specifier: ^6.3.5
+        version: 6.3.5(@types/node@22.15.29)(jiti@2.4.2)(yaml@2.8.0)
       vitest:
         specifier: ^3.2.2
         version: 3.2.2(@types/debug@4.1.12)(@types/node@22.15.30)(jiti@2.4.2)(yaml@2.8.0)
@@ -136,6 +142,9 @@ importers:
       typescript:
         specifier: ~5.8.3
         version: 5.8.3
+      vite:
+        specifier: ^6.3.5
+        version: 6.3.5(@types/node@22.15.29)(jiti@2.4.2)(yaml@2.8.0)
       vitest:
         specifier: ^3.2.2
         version: 3.2.2(@types/debug@4.1.12)(@types/node@22.15.30)(jiti@2.4.2)(yaml@2.8.0)
