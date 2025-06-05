@@ -20,9 +20,9 @@
   "files": ["dist"],
   "scripts": {
     "build": "tsc",
-    "clean": "rimraf -g \"*.tgz\" \"*.tsbuildinfo\" dist node_modules/.cache",
+    "clean": "rimraf -g \"*.tgz\" \"*.tsbuildinfo\" coverage dist node_modules/.cache",
     "dev": "tsc --watch",
-    "test": "tsc --noEmit"
+    "test": "vitest run --coverage"
   },
   "dependencies": {
     "@kurone-kito/oneiron-bot-simple": "workspace:^",
@@ -31,8 +31,10 @@
   "devDependencies": {
     "@kurone-kito/oneiron-vite-config": "workspace:^",
     "@kurone-kito/typescript-config": "^0.19.0-alpha.1",
+    "@vitest/coverage-v8": "3.2.2",
     "rimraf": "^6.0.1",
-    "typescript": "~5.8.3"
+    "typescript": "~5.8.3",
+    "vitest": "^3.2.2"
   },
   "engines": {
     "node": ">=22"

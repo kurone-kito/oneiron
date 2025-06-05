@@ -255,3 +255,10 @@ $RECYCLE.BIN/
 *.lnk
 
 # End of https://www.toptal.com/developers/gitignore/api/linux,macos,node,vim,visualstudiocode,windows
+
+### THE PROJECT SPECIFIES #################################################
+
+### Node ###
+# Vite / Vitest
+v8-compile-cache-*
+vite*.config.[cm][jt]s.timestamp-*
