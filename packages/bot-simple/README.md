@@ -20,6 +20,12 @@ pnpm run dev
 pnpm run clean
 ```
 
+## Test
+
+```bash
+pnpm run test
+```
+
 ## License
 
 MIT
