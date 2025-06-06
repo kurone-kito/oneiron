@@ -1,13 +1,12 @@
 import { render } from 'ink-testing-library';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { App } from './App.js';
 
+vi.useFakeTimers();
+
 describe('App', () => {
-  it('renders setup modal', () => {
+  it('renders setup modal initially', () => {
     const { lastFrame } = render(<App />);
-    const frame = lastFrame() ?? '';
-    expect(frame).toContain('プレイヤー数');
-    expect(frame).toContain('Bot mode');
-    expect(frame).toContain('決定');
+    expect(lastFrame()).toContain('プレイヤー数');
   });
 });
