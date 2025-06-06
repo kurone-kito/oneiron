@@ -1,5 +1,12 @@
 export { directions, dominance, suits, phases } from './constants/entities.mjs';
 
+export { addForbidCoordinate, moveCoordinate } from './domain/board.mjs';
+export { compareCard, createDeck, dominates, shuffle } from './domain/card.mjs';
+export { createGameState, nextPhase } from './domain/gameState.mjs';
+export { createId } from './domain/object.mjs';
+export { applyDamage, createPlayer, drawCard } from './domain/player.mjs';
+export { createTeam } from './domain/team.mjs';
+
 export type { ReadonlyRecord, RecordKey } from './types/common.mjs';
 
 export type {
