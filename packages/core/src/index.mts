@@ -7,6 +7,8 @@ export { createId } from './domain/object.mjs';
 export { applyDamage, createPlayer, drawCard } from './domain/player.mjs';
 export { createTeam } from './domain/team.mjs';
 
+export type { PlayerAgent } from './types/agents/player.mjs';
+
 export type { ReadonlyRecord, RecordKey } from './types/common.mjs';
 
 export type {
