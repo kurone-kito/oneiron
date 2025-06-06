@@ -1,5 +1,10 @@
 {
-  "compilerOptions": { "outDir": "dist", "rootDir": "src" },
+  "compilerOptions": {
+    "lib": ["ES2023", "DOM"],
+    "jsx": "react-jsx",
+    "outDir": "dist",
+    "rootDir": "src"
+  },
   "exclude": [
     "**/*.spec.mts",
     "*.config.mts",
@@ -7,5 +12,6 @@
     "dist",
     "node_modules"
   ],
-  "extends": "@kurone-kito/typescript-config/tsconfig.json"
+  "extends": "@kurone-kito/typescript-config/tsconfig.json",
+  "include": ["**/*.mts", "**/*.tsx"]
 }
