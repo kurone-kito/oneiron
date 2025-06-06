@@ -4,6 +4,12 @@
     "outDir": "dist",
     "rootDir": "src"
   },
-  "exclude": ["**/*.spec.mts", "coverage", "dist", "node_modules"],
+  "exclude": [
+    "**/*.spec.mts",
+    "*.config.mts",
+    "coverage",
+    "dist",
+    "node_modules"
+  ],
   "extends": "@kurone-kito/typescript-config/tsconfig.json"
 }

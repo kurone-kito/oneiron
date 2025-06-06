@@ -1,1 +1,2 @@
-export default undefined;
+export type { ViteConfigOptions } from './vite.mjs';
+export { viteConfig } from './vite.mjs';
