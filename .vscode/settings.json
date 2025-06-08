@@ -15,6 +15,7 @@
     "tsconfig.json": "*.tsbuildinfo"
   },
   "files.associations": {
+    "*.css": "tailwindcss",
     ".imgbotconfig": "json",
     "LICENSE": "plaintext"
   },
