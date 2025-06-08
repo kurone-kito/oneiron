@@ -1,0 +1,51 @@
+name: The CD workflow on push
+on:
+  push:
+    branches:
+      - main
+permissions:
+  contents: read
+  pages: write
+run-name: Pushed by @${{ github.actor }}
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    name: Build and deploy to GitHub Pages
+    runs-on: ubuntu-latest
+    steps:
+      - name: Stages the pushed branch
+        uses: actions/checkout@v4
+      - name: Pre-prepare the Node.js environment
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+      - name: Install the latest corepack explicitly
+        run: npm install --force -g corepack@latest
+      - name: Enable the corepack
+        run: corepack enable
+      - name: Post-prepare the Node.js environment
+        uses: actions/setup-node@v4
+        with:
+          cache: ${{ !env.ACT && 'pnpm' || '' }}
+          node-version-file: .node-version
+      - env:
+          HUSKY: 0
+        name: Install the dependencies
+        run: pnpm i --prefer-frozen-lockfile
+      - env:
+          SIMULATOR_BASE_PATH: /oneiron
+        name: Run the build process
+        run: pnpm run build
+      - name: Prepare for GitHub Pages deployment
+        uses: actions/configure-pages@v5
+        with:
+          enablement: true
+      - name: Upload to GitHub Pages artifacts
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: packages/simulator/.output/public
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
