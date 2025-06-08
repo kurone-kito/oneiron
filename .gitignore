@@ -259,6 +259,9 @@ $RECYCLE.BIN/
 ### THE PROJECT SPECIFIES #################################################
 
 ### Node ###
+# Playwright
+test-results/
+
 # Solid.js
 .output/
 .vinxi/

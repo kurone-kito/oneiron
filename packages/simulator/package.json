@@ -21,7 +21,8 @@
     "build": "vinxi build",
     "clean": "rimraf -g \"*.tgz\" \"*.tsbuildinfo\" .output .vinxi coverage node_modules/.cache",
     "dev": "vinxi dev",
-    "test": "vitest run --coverage"
+    "prepare": "pnpm exec playwright install",
+    "test": "vitest run --coverage && playwright test"
   },
   "dependencies": {
     "@kurone-kito/oneiron-bot-simple": "workspace:^",
@@ -31,8 +32,10 @@
   },
   "devDependencies": {
     "@kurone-kito/typescript-config": "^0.19.0-alpha.1",
+    "@playwright/test": "^1.52.0",
     "@solidjs/testing-library": "^0.8.10",
     "@testing-library/jest-dom": "^6.6.3",
+    "@types/node": "^22.15.30",
     "@vitest/coverage-v8": "3.2.2",
     "jsdom": "^26.1.0",
     "rimraf": "^6.0.1",
