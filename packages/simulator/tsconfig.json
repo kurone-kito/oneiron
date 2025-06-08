@@ -1,15 +1,21 @@
 {
   "compilerOptions": {
+    "jsx": "preserve",
+    "jsxImportSource": "solid-js",
     "lib": ["DOM", "ES2023"],
-    "outDir": "dist",
-    "rootDir": "src"
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "noEmit": true,
+    "types": ["@solidjs/start/env", "vinxi/types/client"]
   },
   "exclude": [
-    "**/*.spec.mts",
     "*.config.mts",
+    ".output",
+    ".vinxi",
     "coverage",
     "dist",
     "node_modules"
   ],
-  "extends": "@kurone-kito/typescript-config/tsconfig.json"
+  "extends": "@kurone-kito/typescript-config/tsconfig.json",
+  "include": ["./**/*.mjs", "./**/*.mts", "./**/*.tsx"]
 }

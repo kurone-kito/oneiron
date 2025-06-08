@@ -1,4 +1,10 @@
 {
   "$schema": "https://biomejs.dev/schemas/1.9.4/schema.json",
-  "extends": ["./node_modules/@kurone-kito/biome-config/biome.json"]
+  "extends": ["./node_modules/@kurone-kito/biome-config/biome.json"],
+  "linter": {
+    "rules": {
+      "complexity": { "useLiteralKeys": "off" },
+      "correctness": { "useJsxKeyInIterable": "off" }
+    }
+  }
 }

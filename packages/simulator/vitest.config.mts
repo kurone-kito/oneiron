@@ -1,3 +1,7 @@
-import { vitestConfig } from '@kurone-kito/oneiron-vite-config';
+import solidPlugin from 'vite-plugin-solid';
+import { defineConfig } from 'vitest/config';
 
-export default vitestConfig();
+export default defineConfig({
+  plugins: [solidPlugin()],
+  test: { environment: 'jsdom', include: ['src/**/*.spec.{ts,tsx,mts}'] },
+});

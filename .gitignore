@@ -259,6 +259,12 @@ $RECYCLE.BIN/
 ### THE PROJECT SPECIFIES #################################################
 
 ### Node ###
+# Solid.js
+.output/
+.vinxi/
+*.config.timestamp_*.js
+*.config.timestamp_*.mjs
+
 # Vite / Vitest
 v8-compile-cache-*
 vite*.config.[cm][jt]s.timestamp-*
