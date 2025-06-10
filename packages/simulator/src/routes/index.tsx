@@ -1,15 +1,10 @@
 import type { Component } from 'solid-js';
-import { Counter } from '../components/organisms/Counter';
+import { CardGameSimulator } from '../components/organisms/CardGameSimulator';
 
 /**
  * The top page.
  * @returns The component.
  */
-const Index: Component = () => (
-  <>
-    <h1 class="bg-primary text-primary-content">こんにちは世界！</h1>
-    <Counter />
-  </>
-);
+const Index: Component = () => <CardGameSimulator />;
 
 export default Index;
