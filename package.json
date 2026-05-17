@@ -2,11 +2,13 @@
   "name": "@kurone-kito/oneiron",
   "version": "0.1.0",
   "private": true,
-  "description": "The boilerplate project of the Node.js",
+  "description": "Dream Duels: The Battle for Oneiron — a table-talk battle royale card game (work-in-progress monorepo).",
   "keywords": [
-    "boilerplate",
-    "pnpm",
-    "template"
+    "battle-royale",
+    "card-game",
+    "dream-duels",
+    "monorepo",
+    "oneiron"
   ],
   "homepage": "https://github.com/kurone-kito/oneiron#readme",
   "bugs": "https://github.com/kurone-kito/oneiron/issues",

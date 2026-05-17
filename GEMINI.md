@@ -1,9 +1,10 @@
 # Guidelines for AI Agents
 
-This project is a generic Node.js project template using pnpm.
-It is currently optimized for GitHub Copilot tooling, but `GEMINI.md`
-exists so Gemini CLI can still receive the minimum project rules
-immediately, without depending on a redirect.
+This is **Dream Duels: The Battle for Oneiron** — a table-talk battle
+royale card game implemented as a pnpm monorepo (`packages/core` for the
+rule engine, `packages/web` for the simulator). It is optimized for
+GitHub Copilot tooling, but `GEMINI.md` exists so Gemini CLI can receive
+the minimum project rules immediately, without depending on a redirect.
 
 ## Setup commands
 
@@ -54,26 +55,19 @@ A `.gitmessage` template is available at the repository root.
 Write user-facing, lowercase subjects, keep them under 72 characters,
 and split unrelated changes into separate atomic commits.
 
-## Onboarding detection
+## Project status
 
-When starting a session, check whether this repository is the base
-template or a derived project:
+This repository has been onboarded and customized from the
+`kurone-kito/pnpm-project-template` base. The IDD workflow setup is in
+progress via follow-up issues. When available:
 
-- If the repository name is exactly `oneiron`, it is
-  the base template — no action needed.
-- If the name differs **and** this file still contains the phrase
-  `generic Node.js project template using pnpm`, the guidelines
-  have not been customized yet.
-
-In that case, **proactively propose an onboarding workflow** to
-customize the project's documentation, tooling, and AI guidelines.
-See the full onboarding checklist in
-[.github/copilot-instructions.md](.github/copilot-instructions.md).
+- `docs/idd-policy.md` — recorded IDD policy decisions
+- `docs/idd-workflow.md` — cross-agent IDD workflow entry path
 
 ## Canonical reference
 
 The full, Copilot-first project guidance lives in
 [.github/copilot-instructions.md](.github/copilot-instructions.md).
 When that file uses Copilot-specific workflow names, apply the intent
-in Gemini CLI using its own interaction model rather than following
-the product terms literally.
+in Gemini CLI using its own interaction model rather than following the
+product terms literally.
