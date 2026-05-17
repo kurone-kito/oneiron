@@ -1,6 +1,6 @@
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: ${{ startsWith(github.ref, 'refs/pull/') }}
+  cancel-in-progress: true
 name: The CI workflow on push
 on:
   push:
@@ -35,6 +35,10 @@ jobs:
           HUSKY: 0
         name: Install the dependencies
         run: pnpm install --frozen-lockfile --prefer-offline
+      - name: Run the linter
+        run: pnpm run lint
+      - name: Run the type checker
+        run: pnpm -r run typecheck
       - name: Run the tests
         run: pnpm run test
     strategy:
@@ -58,4 +62,4 @@ jobs:
             shell: bash
           - os: windows-latest
             shell: powershell
-    timeout-minutes: 5
+    timeout-minutes: 10
