@@ -57,14 +57,18 @@ A `.gitmessage` template is available at the repository root.
 Write user-facing, lowercase subjects, keep them under 72 characters,
 and split unrelated changes into separate atomic commits.
 
-## Project status
+## IDD Workflow
 
-This repository has been onboarded and customized from the
-`kurone-kito/pnpm-project-template` base. The IDD workflow setup is in
-progress via follow-up issues. When available:
+This project uses Issue-Driven Development (IDD) with parallel AI
+agents. Start with [docs/idd-workflow.md](docs/idd-workflow.md) for the
+cross-agent entry path and phase routing.
 
-- `docs/idd-policy.md` — recorded IDD policy decisions
-- `docs/idd-workflow.md` — cross-agent IDD workflow entry path
+Before starting IDD work, open
+`.github/instructions/idd-overview.instructions.md`. Open the routed
+phase file manually when the current step changes.
+
+Policy decisions are recorded in
+[docs/idd-policy.md](docs/idd-policy.md).
 
 ## Canonical reference
 
