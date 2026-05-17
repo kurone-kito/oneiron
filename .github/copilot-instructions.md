@@ -230,11 +230,10 @@ pnpm run lint:fix # Lint and auto-fix
 ### Testing
 
 ```sh
-pnpm run test
+pnpm run test          # run all tests (Vitest)
+pnpm run test:watch    # run tests in watch mode
+pnpm run test:coverage # run tests with coverage report
 ```
-
-Currently, the command works as an alias for the `pnpm run lint` command.
-Set up your own testing framework and replace this script as needed.
 
 ### Cleaning
 
