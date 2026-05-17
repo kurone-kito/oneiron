@@ -2,7 +2,8 @@
   "extends": "@kurone-kito/typescript-config",
   "compilerOptions": {
     "jsx": "preserve",
-    "jsxImportSource": "solid-js"
+    "jsxImportSource": "solid-js",
+    "lib": ["dom", "dom.iterable", "esnext"]
   },
   "include": ["src/**/*.ts", "src/**/*.tsx"]
 }
