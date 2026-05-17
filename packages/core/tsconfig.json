@@ -1,0 +1,8 @@
+{
+  "extends": "@kurone-kito/typescript-config",
+  "compilerOptions": {
+    "noEmit": true,
+    "rootDir": "src"
+  },
+  "include": ["src/**/*.ts"]
+}

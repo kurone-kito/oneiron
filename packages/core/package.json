@@ -1,0 +1,34 @@
+{
+  "name": "@kurone-kito/oneiron-core",
+  "version": "0.1.0",
+  "private": false,
+  "description": "Dream Duels: The Battle for Oneiron — core rule engine.",
+  "keywords": [
+    "battle-royale",
+    "card-game",
+    "dream-duels",
+    "oneiron"
+  ],
+  "homepage": "https://github.com/kurone-kito/oneiron#readme",
+  "bugs": "https://github.com/kurone-kito/oneiron/issues",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/kurone-kito/oneiron.git",
+    "directory": "packages/core"
+  },
+  "license": "MIT",
+  "author": "kurone-kito <krone@kit.black> (https://kit.black/)",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "files": [
+    "src"
+  ],
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}
