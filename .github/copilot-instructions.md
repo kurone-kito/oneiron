@@ -1,10 +1,11 @@
 # Guidelines for AI Agents
 
-This project is a generic Node.js project template using pnpm.
-It supports both monorepo and non-monorepo configurations,
-providing a common foundation that can be specialized for either
-structure. It is derived from the language-independent
-[template](https://github.com/kurone-kito/template) repository.
+This is **Dream Duels: The Battle for Oneiron** — a table-talk battle
+royale card game implemented as a pnpm monorepo. The `packages/core`
+workspace holds the npm-publishable rule engine; `packages/web` holds
+the web-based simulator. The project is derived from
+[`kurone-kito/pnpm-project-template`](https://github.com/kurone-kito/pnpm-project-template)
+and has been customized for this game.
 
 When contributing to this repository using AI agents, adhere to the
 following guidelines to ensure high-quality contributions that align
@@ -294,57 +295,19 @@ These rules follow the
   the AI to review its own output and suggest improvements before
   accepting
 
-## Onboarding
+## Project status and IDD workflow
 
-This project template is a Node.js / pnpm specific derivative of the
-generic [template](https://github.com/kurone-kito/template).
-If you plan to customize this template for a different framework or
-toolchain, **submit a proposal to update the documentation first**.
+This repository has been onboarded. AI guideline files, README, and
+rules documentation have been customized for Dream Duels. Follow-up
+issues are completing the multi-agent IDD (Issue-Driven Development)
+workflow setup. Once those issues land, the following files will be
+present:
 
-### Derived-repository detection
+- `docs/idd-policy.md` — recorded IDD policy decisions
+- `docs/idd-workflow.md` — cross-agent IDD workflow entry path
+- `.github/instructions/idd-overview.instructions.md` — phase routing
 
-When an AI agent starts a session, it should determine whether this
-repository is the **base template** or a **derived project**:
-
-1. **Check the repository name** — inspect the git remote URL
-   (e.g., `git remote get-url origin`), the working-directory name,
-   or any GitHub API context available to the agent. If the
-   repository name is exactly `pnpm-project-template`, treat it as
-   the base template. Any other name indicates a derived project.
-2. **Check for generic content** — look for the sentinel phrase
-   `generic Node.js project template using pnpm` in this file or
-   in the repository's AI instruction files. Its presence means the
-   guidelines have **not yet been customized**.
-
-If both conditions are met — the repository is derived **and** the
-guidelines are still generic — the agent should **proactively
-propose an onboarding workflow** before proceeding with the user's
-request. The proposal should be conversational, brief, and
-non-blocking (the user may decline and continue normally).
-
-### Onboarding proposal
-
-When proposing onboarding, suggest customizing the following areas
-in a single plan:
-
-1. **Project description** — update `README.md` and the opening
-   lines of AI instruction files to reflect the project's purpose
-2. **Framework / toolchain** — identify the primary framework;
-   add relevant build tooling and type definitions
-3. **Dependency management** — configure workspace structure and
-   lock-file conventions as needed
-4. **Testing strategy** — define the test runner, coverage targets,
-   and test-file conventions
-5. **CI/CD workflows** — adjust `.github/workflows/` to match the
-   project's build, test, and deploy pipeline
-6. **AI guideline specialization** — rewrite this file,
-   `AGENTS.md`, `CLAUDE.md`, and `GEMINI.md` to include
-   project-specific rules, coding patterns, and architecture notes
-7. **README rewrite** — replace the template README with
-   project-specific content (badges, installation, usage, etc.)
-8. **License review** — confirm or replace the MIT license if the
-   project requires a different one
-
-Present these items as a checklist proposal (e.g., in Plan mode for
-Copilot, or as a numbered list for other agents). Let the user
-select which items to tackle and in what order.
+When those files are present, open `docs/idd-workflow.md` as the
+cross-agent entry path before starting IDD work, and open
+`.github/instructions/idd-overview.instructions.md` before each
+phase change.

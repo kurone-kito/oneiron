@@ -1,8 +1,8 @@
 # AI tooling strategy
 
-This repository currently prioritizes GitHub Copilot because it
-provides the best latency and workflow fit for day-to-day vibe coding
-in this template.
+This repository prioritizes GitHub Copilot for day-to-day development
+on **Dream Duels: The Battle for Oneiron**, a table-talk battle royale
+card game implemented as a pnpm monorepo.
 
 ## Canonical guidance
 
@@ -29,16 +29,12 @@ in this template.
   underlying intent so other agents can map it to their own interaction
   model.
 
-## Onboarding detection
+## Onboarding status
 
-When the repository name is not `oneiron` and the AI
-instruction files still contain the generic sentinel phrase, AI agents
-should proactively propose a customization workflow. This keeps the
-template's "vibe-coding ready" promise alive in derived projects by
-guiding users through documentation, tooling, and guideline
-specialization immediately after they create a new repository from
-the template. The full onboarding checklist is maintained in
-`.github/copilot-instructions.md` § Onboarding.
+This repository has been onboarded and customized. The pnpm-template
+sentinel phrase has been removed and the AI guideline files now describe
+Dream Duels specifically. Follow-up issues are completing the IDD
+workflow setup (`docs/idd-policy.md`, `docs/idd-workflow.md`).
 
 ## Maintenance notes
 
