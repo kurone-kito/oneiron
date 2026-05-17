@@ -1,23 +1,41 @@
 {
-  "eslint.nodePath": ".yarn/sdks",
-  "eslint.packageManager": "yarn",
+  "editor.defaultFormatter": "biomejs.biome",
+  "explorer.fileNesting.enabled": true,
+  "explorer.fileNesting.expand": false,
+  "explorer.fileNesting.patterns": {
+    "*.md": "${capture}.*.md",
+    ".gitattributes": ".gitignore, .gitmessage",
+    ".markdownlint.*": ".markdownlint-cli2.*",
+    ".tool-versions": ".node-version, .nvmrc",
+    "AGENTS.md": "CLAUDE.md, GEMINI.md",
+    "package.json": ".npmrc, pnpm-lock.yaml, pnpm-workspace.yaml",
+    "tsconfig.json": "*.tsbuildinfo"
+  },
+  "files.associations": {
+    ".gitmessage": "git-commit",
+    ".imgbotconfig": "json",
+    "LICENSE": "plaintext"
+  },
+  "files.readonlyInclude": {
+    "**/node_modules/**/*": true
+  },
   "files.watcherExclude": {
-    "**/.eslintcache": true,
-    "**/.pnp.*": true,
-    "**/.yarn/cache/**": true,
-    "**/.yarn/unplugged/**": true
+    "**/*.tgz": true,
+    "**/.git/objects/**": true,
+    "**/.git/subtree-cache/**": true,
+    "**/.husky/_/**": true,
+    "**/node_modules/**": true,
+    "**/pnpm-lock.yaml.*": true
   },
-  "json.schemas": [
-    {
-      "fileMatch": [".cspell.yml"],
-      "url": "https://raw.githubusercontent.com/streetsidesoftware/cspell/main/packages/cspell-types/cspell.schema.json"
-    }
-  ],
-  "prettier.prettierPath": ".yarn/sdks/prettier/index.js",
+  "git.branchProtection": ["main"],
+  "material-icon-theme.files.associations": {
+    ".imgbotconfig": "robots"
+  },
   "search.exclude": {
-    "**/.pnp.*": true,
-    "**/.yarn": true
+    "**/node_modules/**": true
   },
-  "typescript.enablePromptUseWorkspaceTsdk": true,
-  "typescript.tsdk": ".yarn/sdks/typescript/lib"
+  "yaml.schemas": {
+    "https://raw.githubusercontent.com/streetsidesoftware/cspell/main/packages/cspell-types/cspell.schema.json": ".cspell.config.yml",
+    "https://storage.googleapis.com/coderabbit_public_assets/schema.v2.json": ".coderabbit.yaml"
+  }
 }
