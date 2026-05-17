@@ -1,12 +1,18 @@
-// Proof-of-concept import from the core rule engine.
-// The exported value is intentionally empty at this scaffold stage.
-import type {} from '@kurone-kito/oneiron-core';
+import type { Card } from '@kurone-kito/oneiron-core';
+import { Hand } from './components/Hand.tsx';
+
+const demoCards: Card[] = [
+  { kind: 'element', element: 'fire', value: 7 },
+  { kind: 'element', element: 'water', value: 3 },
+  { kind: 'joker' },
+];
 
 export function App() {
   return (
     <main>
       <h1>⚔️ Dream Duels: The Battle for Oneiron</h1>
-      <p>Simulator coming soon.</p>
+      <Hand cards={demoCards} label="Demo Hand (face up)" faceUp={true} />
+      <Hand cards={demoCards} label="Demo Hand (face down)" faceUp={false} />
     </main>
   );
 }
