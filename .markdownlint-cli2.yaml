@@ -2,3 +2,19 @@ ignores:
   - '**/node_modules/**/*'
   - .github/CODE_OF_CONDUCT*
   - node_modules/**/*
+  - .github/instructions/**/*
+  - docs/idd-*.md
+  - docs/concepts.md
+  - docs/customization.md
+  - docs/getting-started.md
+  - docs/idd-comment-minimization.md
+  - docs/idd-helper-scripts.md
+  - docs/idd-resume-detail.md
+  - docs/idd-review-policy-profiles.md
+  - docs/idd-workflow.md
+  - docs/onboarding/**/*
+  - docs/permissions.md
+  - docs/policy-constants.md
+  - docs/reference.md
+  - profiles/**/*
+  - skills/**/*

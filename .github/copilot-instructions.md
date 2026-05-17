@@ -294,19 +294,15 @@ These rules follow the
   the AI to review its own output and suggest improvements before
   accepting
 
-## Project status and IDD workflow
+## IDD Workflow
 
-This repository has been onboarded. AI guideline files, README, and
-rules documentation have been customized for Dream Duels. Follow-up
-issues are completing the multi-agent IDD (Issue-Driven Development)
-workflow setup. Once those issues land, the following files will be
-present:
+This project uses Issue-Driven Development (IDD) with parallel AI
+agents. Start with [docs/idd-workflow.md](docs/idd-workflow.md) for the
+cross-agent entry path and phase routing.
 
-- `docs/idd-policy.md` — recorded IDD policy decisions
-- `docs/idd-workflow.md` — cross-agent IDD workflow entry path
-- `.github/instructions/idd-overview.instructions.md` — phase routing
+Before starting IDD work, open
+`.github/instructions/idd-overview.instructions.md`. Open the routed
+phase file manually when the current step changes.
 
-When those files are present, open `docs/idd-workflow.md` as the
-cross-agent entry path before starting IDD work, and open
-`.github/instructions/idd-overview.instructions.md` before each
-phase change.
+Policy decisions are recorded in
+[docs/idd-policy.md](docs/idd-policy.md).

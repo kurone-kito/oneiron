@@ -1,0 +1,26 @@
+{
+  "$schema": "https://kurone-kito.github.io/idd-skill/schemas/policy.schema.json",
+  "iddVersion": "0.1.0",
+  "markerPrefix": "oneiron",
+  "mergePolicy": "fully_autonomous_merge",
+  "reviewPolicy": "copilot-advisory",
+  "threadResolutionPolicy": "fast-agent-resolve",
+  "claimTiming": {
+    "staleAge": "PT24H",
+    "heartbeatInterval": "PT12H"
+  },
+  "trustedMarkerActors": ["kurone-kito"],
+  "commands": {
+    "install-deps": "corepack enable && pnpm install",
+    "fix-validate": "pnpm run lint:fix",
+    "pre-push-validate": "pnpm run lint",
+    "post-fix-validate": "pnpm run lint"
+  },
+  "helperRuntime": {
+    "profile": "package-manager"
+  },
+  "issueScope": "roadmap",
+  "orphanFirstPolicy": "none",
+  "skipIssueAuthorApprovalGate": true,
+  "maintainerApprovalActorPolicy": "owners-and-maintainers-only"
+}
