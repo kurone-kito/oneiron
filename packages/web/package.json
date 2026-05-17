@@ -1,0 +1,35 @@
+{
+  "name": "@kurone-kito/oneiron-web",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Dream Duels: The Battle for Oneiron — web-based simulator.",
+  "keywords": [
+    "battle-royale",
+    "card-game",
+    "dream-duels",
+    "oneiron",
+    "simulator"
+  ],
+  "homepage": "https://github.com/kurone-kito/oneiron#readme",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/kurone-kito/oneiron.git",
+    "directory": "packages/web"
+  },
+  "license": "MIT",
+  "author": "kurone-kito <krone@kit.black> (https://kit.black/)",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@kurone-kito/oneiron-core": "workspace:*",
+    "solid-js": "^1.9.7"
+  },
+  "devDependencies": {
+    "vite": "^6.3.5",
+    "vite-plugin-solid": "^2.11.6"
+  }
+}
