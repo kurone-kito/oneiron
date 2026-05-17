@@ -39,7 +39,11 @@ export type Grid = Readonly<
 >;
 
 /** Ordered axis positions: fire=0, water=1, wood=2. */
-const ELEMENT_AXIS: readonly ElementCoordinate[] = ['fire', 'water', 'wood'];
+export const ELEMENT_AXIS: readonly ElementCoordinate[] = [
+  'fire',
+  'water',
+  'wood',
+];
 
 /** Clockwise facing order. */
 const FACING_CW: readonly Facing[] = ['north', 'east', 'south', 'west'];

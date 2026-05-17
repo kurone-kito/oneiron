@@ -1,0 +1,231 @@
+import type { Card, Element, ElementCard } from '../types/card.ts';
+import type {
+  ElementCoordinate,
+  Facing,
+  Grid,
+  GridCell,
+  GridCoord,
+  TeamState,
+} from '../types/grid.ts';
+import { ELEMENT_AXIS, isAdjacent, isSameCoord } from '../types/grid.ts';
+import type { NumberToken, TeamId } from '../types/token.ts';
+
+/** The four phases of a round, executed in order. */
+export type RoundPhase = 'battle' | 'forbidden' | 'movement' | 'revival';
+
+/** Immutable snapshot of the full game state at any point in a round. */
+export type RoundState = {
+  readonly phase: RoundPhase;
+  readonly round: number;
+  readonly grid: Grid;
+  /** All forbidden cells accumulated so far this game. */
+  readonly forbiddenCells: readonly GridCoord[];
+};
+
+/** One encounter result between two teams. */
+export type BattleResult = {
+  readonly teamA: TeamId;
+  readonly teamB: TeamId;
+  readonly encounterType: 'adjacent' | 'same-cell';
+};
+
+/** A team's movement card reveal during the movement phase. */
+export type TeamMove = {
+  readonly teamId: TeamId;
+  /** Card revealed for movement this round. */
+  readonly card: Card;
+  /** Facing the team chose when presenting the card (step 3 of movement). */
+  readonly intendedFacing: Facing;
+};
+
+/** Returns a blank 3×3 grid with no teams. */
+export function createEmptyGrid(): Grid {
+  const empty: GridCell = [];
+  const row = { fire: empty, water: empty, wood: empty } as const;
+  return { fire: row, water: row, wood: row } as Grid;
+}
+
+function allTeams(grid: Grid): TeamState[] {
+  const teams: TeamState[] = [];
+  for (const x of ELEMENT_AXIS) {
+    for (const y of ELEMENT_AXIS) {
+      teams.push(...grid[x][y]);
+    }
+  }
+  return teams;
+}
+
+function isTeamAlive(team: TeamState): boolean {
+  return team.players.some((p) => p.life > 0);
+}
+
+/**
+ * Returns BattleResult[] listing every pair of teams that encounter
+ * each other based on grid position (same cell or adjacent cells).
+ * Card resolution and damage are handled separately by the caller.
+ */
+export function advanceBattle(state: RoundState): BattleResult[] {
+  const teams = allTeams(state.grid);
+  const results: BattleResult[] = [];
+
+  for (let i = 0; i < teams.length; i++) {
+    for (let j = i + 1; j < teams.length; j++) {
+      const a = teams[i] as TeamState;
+      const b = teams[j] as TeamState;
+      if (isSameCoord(a.position, b.position)) {
+        results.push({
+          teamA: a.teamNumber,
+          teamB: b.teamNumber,
+          encounterType: 'same-cell',
+        });
+      } else if (isAdjacent(a.position, b.position)) {
+        results.push({
+          teamA: a.teamNumber,
+          teamB: b.teamNumber,
+          encounterType: 'adjacent',
+        });
+      }
+    }
+  }
+
+  return results;
+}
+
+/**
+ * Advances from the battle phase to movement by recording the new
+ * forbidden cell. The first drawn card gives the x-coordinate and the
+ * second gives the y-coordinate.
+ */
+export function advanceForbidden(
+  state: RoundState,
+  drawnCards: readonly [ElementCard, ElementCard],
+): RoundState {
+  const newCell: GridCoord = {
+    x: drawnCards[0].element,
+    y: drawnCards[1].element,
+  };
+  return {
+    ...state,
+    phase: 'movement',
+    forbiddenCells: [...state.forbiddenCells, newCell],
+  };
+}
+
+function elementStep(
+  coord: ElementCoordinate,
+  delta: 1 | -1,
+): ElementCoordinate {
+  const idx = ELEMENT_AXIS.indexOf(coord);
+  const next = idx + delta;
+  if (next < 0 || next >= ELEMENT_AXIS.length) {
+    return coord;
+  }
+  return ELEMENT_AXIS[next] as ElementCoordinate;
+}
+
+function stepForward(pos: GridCoord, facing: Facing): GridCoord {
+  switch (facing) {
+    case 'north':
+      return { x: pos.x, y: elementStep(pos.y, 1) };
+    case 'south':
+      return { x: pos.x, y: elementStep(pos.y, -1) };
+    case 'east':
+      return { x: elementStep(pos.x, 1), y: pos.y };
+    case 'west':
+      return { x: elementStep(pos.x, -1), y: pos.y };
+  }
+}
+
+function replaceTeamInGrid(
+  grid: Grid,
+  oldPos: GridCoord,
+  updated: TeamState,
+): Grid {
+  const oldCell = grid[oldPos.x][oldPos.y].filter(
+    (t) => t.teamNumber !== updated.teamNumber,
+  );
+  const newPos = updated.position;
+  const prevNewCell =
+    oldPos.x === newPos.x && oldPos.y === newPos.y
+      ? oldCell
+      : grid[newPos.x][newPos.y];
+
+  const withOldRemoved = {
+    ...grid,
+    [oldPos.x]: { ...grid[oldPos.x], [oldPos.y]: oldCell },
+  } as Grid;
+
+  return {
+    ...withOldRemoved,
+    [newPos.x]: {
+      ...withOldRemoved[newPos.x],
+      [newPos.y]: [...prevNewCell, updated],
+    },
+  } as Grid;
+}
+
+function findTeam(grid: Grid, teamId: NumberToken): TeamState | undefined {
+  return allTeams(grid).find((t) => t.teamNumber === teamId);
+}
+
+/**
+ * Processes the movement phase. For each team that revealed a card:
+ * - If card element matches movementAttribute (or is a joker): move
+ *   the team one cell in its current facing direction.
+ * - Otherwise: update the team's facing to intendedFacing.
+ * Returns a new state with phase = 'revival'.
+ */
+export function advanceMovement(
+  state: RoundState,
+  movementAttribute: Element,
+  teamMoves: readonly TeamMove[],
+): RoundState {
+  let grid = state.grid;
+
+  for (const move of teamMoves) {
+    const team = findTeam(grid, move.teamId);
+    if (team === undefined) continue;
+
+    const cardElement = move.card.kind === 'element' ? move.card.element : null;
+    const isMove =
+      move.card.kind === 'joker' || cardElement === movementAttribute;
+
+    let updated: TeamState;
+    if (isMove) {
+      const newPos = stepForward(team.position, team.facing);
+      updated = { ...team, position: newPos };
+    } else {
+      updated = { ...team, facing: move.intendedFacing };
+    }
+
+    grid = replaceTeamInGrid(grid, team.position, updated);
+  }
+
+  return { ...state, phase: 'revival', grid };
+}
+
+/**
+ * Advances from revival to the next round's battle phase.
+ * Life-token recovery is not yet implemented (pending dropped-token
+ * tracking); this function only advances the round counter and phase.
+ */
+export function advanceRevival(state: RoundState): RoundState {
+  return { ...state, phase: 'battle', round: state.round + 1 };
+}
+
+/**
+ * Returns true when the game has ended: zero or one team still has at
+ * least one player with life remaining.
+ */
+export function isGameOver(state: RoundState): boolean {
+  return allTeams(state.grid).filter(isTeamAlive).length <= 1;
+}
+
+/**
+ * Returns the surviving team's ID when exactly one team is still alive,
+ * or null if the game is not yet over or ended in a draw.
+ */
+export function winner(state: RoundState): TeamId | null {
+  const alive = allTeams(state.grid).filter(isTeamAlive);
+  return alive.length === 1 ? (alive[0] as TeamState).teamNumber : null;
+}
