@@ -1,69 +1,44 @@
-# 📄 PNPM project template
+# ⚔️ Dream Duels: The Battle for Oneiron
 
-## Features
+> **[日本語版 README はこちら](./README.ja.md)**
 
-- AI agent guidance with a Copilot-first compatibility layout
-  ([GitHub Copilot canonical guide](.github/copilot-instructions.md),
-  [OpenAI Codex adapter](AGENTS.md),
-  [Claude Code adapter](CLAUDE.md),
-  [strategy notes](docs/ai-strategy.md))
-- PNPM
-- TypeScript
-- Biome
-- Commitlint with Husky
-- [Conventional Commits](https://www.conventionalcommits.org/)
-- Visual Studio Code / Vim ready
-- CI configurations
-  - CodeRabbit
-  - Dependabot
-  - GitHub Actions
+A table-talk battle royale card game engine and web simulator.
 
-## How to use this template
+## Overview
 
-You can create a new project by using `degit` or the “Use this template”
-button on GitHub.
+Dream Duels is a battle royale card game for 6–12 players (2–20
+theoretically) plus one Game Master. Players fight on a 3×3 elemental
+grid using Fire, Water, and Wood cards in a rock-paper-scissors
+relationship, across four repeating phases: Battle, Forbidden Area,
+Movement, and Revival.
 
-```sh
-npx degit kurone-kito/oneiron my-project
-cd my-project
-pnpm install
-```
+The last team standing wins.
 
-### Additional configurations
+## Repository structure
 
-- Update `package.json` fields:
-  - `name`: The name of your project.
-  - `description`: A brief description of your project.
-  - `author`: Your name or organization.
-  - `license`: The license for your project (default is MIT).
-  - `homepage`: The homepage URL for your project.
-  - `repository`: The repository URL for your project.
-  - `bugs`: The URL for reporting issues.
-- Edit or remove `.github/CODEOWNERS` as needed.
-- Review `docs/ai-strategy.md`, then update `AGENTS.md`,
-  `CLAUDE.md`, and `.github/copilot-instructions.md` to reflect your
-  project specifics and preferred tooling order.
+This monorepo (pnpm workspaces) will contain:
 
-### Usecase
+| Package | Description |
+| --- | --- |
+| `packages/core` | `@kurone-kito/oneiron-core` — rule engine (npm-publishable) |
+| `packages/web` | `@kurone-kito/oneiron-web` — web-based simulator |
 
-When you want to create a monorepo project, you should use the
-[pnpm-workspace-template](https://github.com/kurone-kito/pnpm-workspace-template).
+> Packages are scaffolded by follow-up issues. This commit establishes
+> repository identity only.
 
-## System Requirements
+## Game rules
 
-- Node.js: Any of the following versions
-  - Jod LTS (`^22.22.2`)
-  - Krypton LTS (`^24.x.x`)
-  - Latest (`>=25.x.x`)
-
-Note that this template includes `.node-version`, `.nvmrc`, and
-`.tool-versions` files with specific Node.js versions. These files
-currently list `22.22.2`, so update them and this section as needed when
-you start a new project.
+- [Japanese / 日本語](./docs/rules.ja.md) — canonical
+- [English](./docs/rules.md) — translation pending
 
 ## Development
 
-### Install the dependencies
+### Requirements
+
+- Node.js: `^22.22.2 || >=24`
+- pnpm (via corepack)
+
+### Setup
 
 ```sh
 corepack enable
@@ -74,7 +49,7 @@ pnpm install
 
 ```sh
 pnpm run lint
-pnpm run lint:fix # Lint and auto-fix
+pnpm run lint:fix
 ```
 
 ### Testing
@@ -83,8 +58,8 @@ pnpm run lint:fix # Lint and auto-fix
 pnpm run test
 ```
 
-Currently, the command works as an alias for the `pnpm run lint` command.
-Set up your own testing framework and replace this script as needed.
+Currently an alias for `pnpm run lint`. A real test runner (Vitest) is
+set up by a follow-up issue.
 
 ### Cleaning
 
@@ -94,8 +69,7 @@ pnpm run clean
 
 ## Contributing
 
-Welcome to contribute to this repository! For more details,
-please refer to [CONTRIBUTING.md](.github/CONTRIBUTING.md).
+Please read [CONTRIBUTING.md](.github/CONTRIBUTING.md).
 
 ## License
 
