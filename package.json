@@ -27,7 +27,9 @@
     "lint:fix:biome": "biome check --write",
     "lint:fix:markdown": "markdownlint-cli2 --fix \"**/*.md\"",
     "prepare": "husky",
-    "test": "pnpm run lint"
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "test:watch": "vitest"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.4.15",
@@ -40,7 +42,9 @@
     "@kurone-kito/lint-staged-config": "^0.23.0-alpha.1",
     "@kurone-kito/markdownlint-config": "^0.23.0-alpha.1",
     "@kurone-kito/typescript-config": "^0.22.0-alpha.9",
+    "@vitest/coverage-v8": "^3.2.0",
     "cspell": "^10.0.0",
+    "vitest": "^3.2.0",
     "husky": "^9.1.7",
     "lint-staged": "^17.0.5",
     "markdownlint-cli2": "^0.22.1",

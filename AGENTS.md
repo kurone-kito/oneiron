@@ -11,7 +11,9 @@ minimum project rules immediately, without depending on a redirect.
 - Install dependencies: `corepack enable && pnpm install`
 - Lint: `pnpm run lint`
 - Lint and auto-fix: `pnpm run lint:fix`
-- Test: `pnpm run test`
+- Test: `pnpm run test` (Vitest, all workspace packages)
+- Test (watch mode): `pnpm run test:watch`
+- Test (with coverage): `pnpm run test:coverage`
 - Clean: `pnpm run clean`
 
 ## Immediate rules
