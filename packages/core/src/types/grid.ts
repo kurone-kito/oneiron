@@ -1,4 +1,4 @@
-import type { Deck, Element } from './card.ts';
+import type { Card, Deck, Element } from './card.ts';
 import type { LifeToken, NumberToken } from './token.ts';
 
 /** Element value used as a grid axis coordinate. */
@@ -25,9 +25,18 @@ export type PlayerState = {
 export type TeamState = {
   readonly position: GridCoord;
   readonly facing: Facing;
+  /** Cards held in the team's private hand (not on the grid). */
   readonly cards: Deck;
   readonly teamNumber: NumberToken;
   readonly players: readonly PlayerState[];
+  /**
+   * The two attribute cards placed face-up under the team's number
+   * token at its grid coordinate. Used by battle-phase encounter
+   * ordering (pair-sum) and by the descent phase to record the
+   * team's piece. Optional for backward compatibility with test
+   * fixtures that do not exercise positioned-card logic.
+   */
+  readonly gridCards?: readonly [Card, Card];
 };
 
 /** All teams currently standing on one grid cell. */
