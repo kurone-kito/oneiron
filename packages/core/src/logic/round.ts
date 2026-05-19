@@ -5,10 +5,12 @@ import type {
   Grid,
   GridCell,
   GridCoord,
+  PlayerState,
   TeamState,
 } from '../types/grid.ts';
 import { ELEMENT_AXIS, isAdjacent, isSameCoord } from '../types/grid.ts';
 import type { NumberToken, TeamId } from '../types/token.ts';
+import { createLifeToken } from '../types/token.ts';
 
 /** The four phases of a round, executed in order. */
 export type RoundPhase = 'battle' | 'forbidden' | 'movement' | 'revival';
@@ -208,11 +210,78 @@ function findTeam(grid: Grid, teamId: NumberToken): TeamState | undefined {
   return allTeams(grid).find((t) => t.teamNumber === teamId);
 }
 
+function isTeamAliveTeam(team: TeamState): boolean {
+  return team.players.some((p) => p.life > 0);
+}
+
+function isTeamDeadTeam(team: TeamState): boolean {
+  return team.players.every((p) => p.life === 0);
+}
+
+/**
+ * Removes 1 life token at a time from the lowest-life living player
+ * until `damage` tokens are deducted or no living players remain.
+ * Returns the updated team and the actual number of tokens removed
+ * (may be less than `damage` if all players reach 0 first).
+ */
+function applyDamage(
+  team: TeamState,
+  damage: number,
+): { team: TeamState; tokensDropped: number } {
+  const players: PlayerState[] = team.players.map((p) => ({ life: p.life }));
+  let tokensDropped = 0;
+  for (let i = 0; i < damage; i++) {
+    let lowestIdx = -1;
+    let lowestLife = Number.POSITIVE_INFINITY;
+    for (let j = 0; j < players.length; j++) {
+      const p = players[j] as PlayerState;
+      if (p.life > 0 && p.life < lowestLife) {
+        lowestLife = p.life;
+        lowestIdx = j;
+      }
+    }
+    if (lowestIdx === -1) break;
+    const p = players[lowestIdx] as PlayerState;
+    players[lowestIdx] = { life: createLifeToken(p.life - 1) };
+    tokensDropped += 1;
+  }
+  return { team: { ...team, players }, tokensDropped };
+}
+
+function addDroppedTokens(
+  tokens: DroppedTokens,
+  coord: GridCoord,
+  delta: number,
+): DroppedTokens {
+  const current = tokens[coord.x][coord.y];
+  return {
+    ...tokens,
+    [coord.x]: { ...tokens[coord.x], [coord.y]: current + delta },
+  } as DroppedTokens;
+}
+
+function removeTeamFromGrid(grid: Grid, team: TeamState): Grid {
+  const { x, y } = team.position;
+  const cell = grid[x][y].filter((t) => t.teamNumber !== team.teamNumber);
+  return {
+    ...grid,
+    [x]: { ...grid[x], [y]: cell },
+  } as Grid;
+}
+
 /**
  * Processes the movement phase. For each team that revealed a card:
  * - If card element matches movementAttribute (or is a joker): move
- *   the team one cell in its current facing direction.
+ *   the team one cell in its current facing direction (off-grid is
+ *   prevented by `stepForward` which clamps to the edge).
  * - Otherwise: update the team's facing to intendedFacing.
+ *
+ * After all moves, applies the forbidden-cell penalty per
+ * rules.ja.md §Movement 7: any team whose new position is on a
+ * forbidden cell loses 1 life token (lowest-life player charged
+ * first). Self-elimination via penalty removes the team from the
+ * grid but does not trigger card theft.
+ *
  * Returns a new state with phase = 'revival'.
  */
 export function advanceMovement(
@@ -241,16 +310,128 @@ export function advanceMovement(
     grid = replaceTeamInGrid(grid, team.position, updated);
   }
 
-  return { ...state, phase: 'revival', grid };
+  // Apply forbidden-cell penalty.
+  let droppedLifeTokens = state.droppedLifeTokens ?? createEmptyDroppedTokens();
+  for (const team of allTeams(grid)) {
+    if (!isTeamAliveTeam(team)) continue;
+    const onForbidden = state.forbiddenCells.some(
+      (c) => c.x === team.position.x && c.y === team.position.y,
+    );
+    if (!onForbidden) continue;
+    const { team: damagedTeam, tokensDropped } = applyDamage(team, 1);
+    droppedLifeTokens = addDroppedTokens(
+      droppedLifeTokens,
+      team.position,
+      tokensDropped,
+    );
+    grid = isTeamDeadTeam(damagedTeam)
+      ? removeTeamFromGrid(grid, damagedTeam)
+      : replaceTeamInGrid(grid, team.position, damagedTeam);
+  }
+
+  return { ...state, phase: 'revival', grid, droppedLifeTokens };
 }
+
+/** A team's chosen recovery action when a dropped token is salvageable. */
+export type RevivalAction =
+  | { readonly type: 'revive-member' }
+  | { readonly type: 'charge-life' }
+  | { readonly type: 'charge-cards' };
+
+const REVIVAL_LIFE_CAP = 4;
 
 /**
  * Advances from revival to the next round's battle phase.
- * Life-token recovery is not yet implemented (pending dropped-token
- * tracking); this function only advances the round counter and phase.
+ *
+ * For each surviving team whose current coordinate has at least one
+ * dropped life token AND the team is the sole survivor on that cell
+ * (v1 eligibility rule — refine via playtest if needed), apply the
+ * caller-provided RevivalAction:
+ *
+ * - **`revive-member`**: restore one eliminated player (life 0 → 1).
+ *   Bonus card draw not yet modelled (pending card-economy work).
+ * - **`charge-life`**: add 1 life to the lowest-life living player,
+ *   clamped to 4. Skip when no eligible player.
+ * - **`charge-cards`**: no-op in v1 (deck-draw not yet modelled).
+ *
+ * Each consumed action decrements `droppedLifeTokens` at the team's
+ * coordinate by 1. Phase advances to `'battle'` and round number
+ * increments regardless of choices.
  */
-export function advanceRevival(state: RoundState): RoundState {
-  return { ...state, phase: 'battle', round: state.round + 1 };
+export function advanceRevival(
+  state: RoundState,
+  choices?: ReadonlyMap<TeamId, RevivalAction>,
+): RoundState {
+  let grid = state.grid;
+  let droppedLifeTokens = state.droppedLifeTokens ?? createEmptyDroppedTokens();
+
+  for (const team of allTeams(grid)) {
+    if (!isTeamAliveTeam(team)) continue;
+    const { x, y } = team.position;
+    if (droppedLifeTokens[x][y] <= 0) continue;
+    // Eligibility (v1 approximation): team is the only one on the cell.
+    const cohabitants = grid[x][y].filter(
+      (t) => t.teamNumber !== team.teamNumber,
+    );
+    if (cohabitants.length > 0) continue;
+
+    const choice = choices?.get(team.teamNumber);
+    if (choice === undefined) continue;
+
+    let updatedTeam: TeamState = team;
+    let consumed = false;
+
+    switch (choice.type) {
+      case 'revive-member': {
+        const idx = team.players.findIndex((p) => p.life === 0);
+        if (idx === -1) break;
+        const newPlayers = team.players.map((p, i) =>
+          i === idx ? { life: createLifeToken(1) } : p,
+        );
+        updatedTeam = { ...team, players: newPlayers };
+        consumed = true;
+        break;
+      }
+      case 'charge-life': {
+        let lowestIdx = -1;
+        let lowestLife = Number.POSITIVE_INFINITY;
+        for (let i = 0; i < team.players.length; i++) {
+          const p = team.players[i] as PlayerState;
+          if (p.life > 0 && p.life < REVIVAL_LIFE_CAP && p.life < lowestLife) {
+            lowestLife = p.life;
+            lowestIdx = i;
+          }
+        }
+        if (lowestIdx === -1) break;
+        const p = team.players[lowestIdx] as PlayerState;
+        const newPlayers = team.players.map((pp, i) =>
+          i === lowestIdx ? { life: createLifeToken(p.life + 1) } : pp,
+        );
+        updatedTeam = { ...team, players: newPlayers };
+        consumed = true;
+        break;
+      }
+      case 'charge-cards': {
+        // No-op in v1: deck-draw protocol not yet modelled.
+        consumed = true;
+        break;
+      }
+    }
+
+    if (!consumed) continue;
+    droppedLifeTokens = addDroppedTokens(droppedLifeTokens, team.position, -1);
+    if (updatedTeam !== team) {
+      grid = replaceTeamInGrid(grid, team.position, updatedTeam);
+    }
+  }
+
+  return {
+    ...state,
+    phase: 'battle',
+    round: state.round + 1,
+    grid,
+    droppedLifeTokens,
+  };
 }
 
 /**
