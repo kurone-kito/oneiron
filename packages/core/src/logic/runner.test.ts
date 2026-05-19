@@ -264,6 +264,30 @@ describe('runRound', () => {
     expect(out.state.forbiddenCells).toEqual([]);
   });
 
+  it('throws when post-battle phases would run without a deck', () => {
+    const teamA = makeTeam({
+      id: 1 as NumberToken,
+      position: fireWater,
+      life: 4,
+      gridCards: [fire5, water3],
+    });
+    const teamB = makeTeam({
+      id: 2 as NumberToken,
+      position: waterWater,
+      life: 4,
+      gridCards: [wood1, wood4],
+    });
+    const {
+      deck: _deck,
+      graveyard: _graveyard,
+      ...legacyState
+    } = stateWith([teamA, teamB]);
+
+    expect(() => runRound(legacyState, makeInputs())).toThrow(
+      'RoundState.deck is required to run post-battle phases',
+    );
+  });
+
   it('stops early when game ends mid-round (battle eliminates loser)', () => {
     // Team A: full life. Team B: 1 life. Battle damage will eliminate B.
     const teamA = makeTeam({

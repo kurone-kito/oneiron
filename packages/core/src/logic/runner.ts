@@ -48,7 +48,7 @@ function battleLogMessage(result: BattleResult): string {
 const JOKER_PHASE_ELEMENT: Element = 'fire';
 
 function drawCards(
-  deck: RoundState['deck'],
+  deck: readonly Card[],
   count: number,
 ):
   | {
@@ -56,13 +56,22 @@ function drawCards(
       readonly remainingDeck: readonly Card[];
     }
   | undefined {
-  if (deck === undefined || deck.length < count) {
+  if (deck.length < count) {
     return undefined;
   }
   return {
     drawn: deck.slice(0, count),
     remainingDeck: deck.slice(count),
   };
+}
+
+function requireDeckState(
+  state: RoundState,
+): RoundState & { readonly deck: readonly Card[] } {
+  if (state.deck === undefined) {
+    throw new Error('RoundState.deck is required to run post-battle phases');
+  }
+  return state as RoundState & { readonly deck: readonly Card[] };
 }
 
 function phaseElement(card: Card): Element {
@@ -110,9 +119,10 @@ export function runRound(state: RoundState, inputs: RoundInputs): RoundOutput {
   }
 
   // Phase 2: forbidden
-  const forbiddenDraw = drawCards(next.deck, 2);
+  const forbiddenState = requireDeckState(next);
+  const forbiddenDraw = drawCards(forbiddenState.deck, 2);
   if (forbiddenDraw === undefined) {
-    next = { ...next, phase: 'movement' };
+    next = { ...forbiddenState, phase: 'movement' };
     log.push({
       round,
       phase: 'forbidden',
@@ -124,7 +134,7 @@ export function runRound(state: RoundState, inputs: RoundInputs): RoundOutput {
       forbiddenCard(forbiddenDraw.drawn[1] as Card),
     ] as const;
     next = advanceForbidden(
-      { ...next, deck: forbiddenDraw.remainingDeck },
+      { ...forbiddenState, deck: forbiddenDraw.remainingDeck },
       drawnCards,
     );
     log.push({
@@ -138,9 +148,10 @@ export function runRound(state: RoundState, inputs: RoundInputs): RoundOutput {
   }
 
   // Phase 3: movement
-  const movementDraw = drawCards(next.deck, 1);
+  const movementState = requireDeckState(next);
+  const movementDraw = drawCards(movementState.deck, 1);
   if (movementDraw === undefined) {
-    next = { ...next, phase: 'revival' };
+    next = { ...movementState, phase: 'revival' };
     log.push({
       round,
       phase: 'movement',
@@ -148,7 +159,10 @@ export function runRound(state: RoundState, inputs: RoundInputs): RoundOutput {
     });
   } else {
     const movementAttribute = phaseElement(movementDraw.drawn[0] as Card);
-    const beforeMovement = { ...next, deck: movementDraw.remainingDeck };
+    const beforeMovement = {
+      ...movementState,
+      deck: movementDraw.remainingDeck,
+    };
     next = advanceMovement(
       beforeMovement,
       movementAttribute,
