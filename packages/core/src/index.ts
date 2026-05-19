@@ -1,4 +1,5 @@
 export * from './config.ts';
+export * from './logic/battle.ts';
 export * from './logic/damage.ts';
 export * from './logic/resolve.ts';
 export * from './logic/round.ts';
