@@ -4,6 +4,7 @@ export * from './logic/damage.ts';
 export * from './logic/deck.ts';
 export * from './logic/resolve.ts';
 export * from './logic/round.ts';
+export * from './logic/runner.ts';
 export * from './logic/setup.ts';
 export * from './types/card.ts';
 export * from './types/grid.ts';
