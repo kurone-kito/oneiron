@@ -13,6 +13,20 @@ import type { NumberToken, TeamId } from '../types/token.ts';
 /** The four phases of a round, executed in order. */
 export type RoundPhase = 'battle' | 'forbidden' | 'movement' | 'revival';
 
+/**
+ * Dropped life tokens awaiting revival, indexed by grid coordinate.
+ * `droppedLifeTokens[x][y]` is the count of tokens lying at (x, y).
+ */
+export type DroppedTokens = Readonly<
+  Record<ElementCoordinate, Readonly<Record<ElementCoordinate, number>>>
+>;
+
+/** Returns a zero-initialised DroppedTokens map. */
+export function createEmptyDroppedTokens(): DroppedTokens {
+  const row = { fire: 0, water: 0, wood: 0 } as const;
+  return { fire: row, water: row, wood: row } as DroppedTokens;
+}
+
 /** Immutable snapshot of the full game state at any point in a round. */
 export type RoundState = {
   readonly phase: RoundPhase;
@@ -20,13 +34,35 @@ export type RoundState = {
   readonly grid: Grid;
   /** All forbidden cells accumulated so far this game. */
   readonly forbiddenCells: readonly GridCoord[];
+  /**
+   * Life tokens dropped during battle (and movement penalties),
+   * awaiting potential recovery in the revival phase.
+   * Optional for backward compatibility with code that pre-dates
+   * the wave-4 battle-damage extension.
+   */
+  readonly droppedLifeTokens?: DroppedTokens;
 };
 
-/** One encounter result between two teams. */
-export type BattleResult = {
+/**
+ * Identification of a pair of teams that meet on the grid in a
+ * given round, without any resolution information.
+ */
+export type EncounterPair = {
   readonly teamA: TeamId;
   readonly teamB: TeamId;
   readonly encounterType: 'adjacent' | 'same-cell';
+};
+
+/**
+ * Full result of one encounter after card resolution and damage
+ * calculation. Extends {@link EncounterPair} with the resolution
+ * outcome.
+ */
+export type BattleResult = EncounterPair & {
+  /** TeamId of the winner, or null for a draw. */
+  readonly winner: TeamId | null;
+  /** Damage points dealt to the loser (0 on draw). */
+  readonly damage: number;
 };
 
 /** A team's movement card reveal during the movement phase. */
@@ -60,13 +96,17 @@ function isTeamAlive(team: TeamState): boolean {
 }
 
 /**
- * Returns BattleResult[] listing every pair of teams that encounter
- * each other based on grid position (same cell or adjacent cells).
- * Card resolution and damage are handled separately by the caller.
+ * Returns the list of team-pair encounters that would occur this
+ * round, based purely on grid position (same cell or adjacent
+ * cells). No card resolution, no damage application.
+ *
+ * For full battle resolution including card play, damage, and
+ * dropped-token tracking, use `resolveBattlePhase` from
+ * `logic/battle.ts`.
  */
-export function advanceBattle(state: RoundState): BattleResult[] {
+export function advanceBattle(state: RoundState): EncounterPair[] {
   const teams = allTeams(state.grid);
-  const results: BattleResult[] = [];
+  const results: EncounterPair[] = [];
 
   for (let i = 0; i < teams.length; i++) {
     for (let j = i + 1; j < teams.length; j++) {
