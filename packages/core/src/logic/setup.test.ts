@@ -4,6 +4,7 @@ import type { Card } from '../types/card.ts';
 import { isJokerCard } from '../types/card.ts';
 import type { TeamState } from '../types/grid.ts';
 import { ELEMENT_AXIS } from '../types/grid.ts';
+import { buildDeck } from './deck.ts';
 import type { RoundState } from './round.ts';
 import { setupGame } from './setup.ts';
 
@@ -27,6 +28,22 @@ describe('setupGame', () => {
     expect(state.phase).toBe('battle');
     expect(state.round).toBe(1);
     expect(state.forbiddenCells).toEqual([]);
+    expect(state.graveyard).toEqual([]);
+    expect(state.deck).toBeDefined();
+    expect(state.deck?.length).toBeGreaterThan(0);
+  });
+
+  it('stores the remaining shuffled cards as the draw deck', () => {
+    const state = setupGame({ playerCount: 4, seed: 1 }, DEFAULT_CONFIG);
+    const teamCount = allTeams(state).length;
+    const setupBatchSize = teamCount * DEFAULT_CONFIG.deckExtractFactor + 2;
+    const expectedDeckSize =
+      buildDeck(DEFAULT_CONFIG).length -
+      setupBatchSize * 3 -
+      1 -
+      teamCount * DEFAULT_CONFIG.randomCardsDealt;
+
+    expect(state.deck).toHaveLength(expectedDeckSize);
   });
 
   it('creates 1 pair team for 2 players', () => {

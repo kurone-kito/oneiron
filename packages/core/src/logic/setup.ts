@@ -233,5 +233,7 @@ export function setupGame(input: SetupInput, config: GameConfig): RoundState {
     round: 1,
     grid,
     forbiddenCells: [],
+    deck: shuffled,
+    graveyard: [],
   };
 }

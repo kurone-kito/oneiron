@@ -1,4 +1,4 @@
-import type { Card, Element, ElementCard } from '../types/card.ts';
+import type { Card, Deck, Element, ElementCard } from '../types/card.ts';
 import type {
   ElementCoordinate,
   Facing,
@@ -36,6 +36,16 @@ export type RoundState = {
   readonly grid: Grid;
   /** All forbidden cells accumulated so far this game. */
   readonly forbiddenCells: readonly GridCoord[];
+  /**
+   * Remaining shuffled draw pile. Optional for backward compatibility
+   * with fixtures that pre-date the wave-5 card-economy work.
+   */
+  readonly deck?: Deck;
+  /**
+   * Discarded cards accumulated during play. Optional until battle,
+   * movement, and revival start writing to it in later wave-5 issues.
+   */
+  readonly graveyard?: Deck;
   /**
    * Life tokens dropped during battle (and movement penalties),
    * awaiting potential recovery in the revival phase.

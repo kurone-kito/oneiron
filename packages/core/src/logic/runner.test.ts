@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_CONFIG } from '../config.ts';
-import type { Card, ElementCard, JokerCard } from '../types/card.ts';
+import type { Card, JokerCard } from '../types/card.ts';
 import type { GridCoord, TeamState } from '../types/grid.ts';
 import { ELEMENT_AXIS } from '../types/grid.ts';
 import type { NumberToken, TeamId } from '../types/token.ts';
@@ -29,6 +29,13 @@ function allTeams(state: RoundState): TeamState[] {
 }
 
 function stateWith(teams: readonly TeamState[]): RoundState {
+  return stateWithDeck(teams, [fire5, water3, wood4]);
+}
+
+function stateWithDeck(
+  teams: readonly TeamState[],
+  deck: readonly Card[],
+): RoundState {
   let grid = createEmptyGrid();
   for (const team of teams) {
     const { x, y } = team.position;
@@ -37,7 +44,14 @@ function stateWith(teams: readonly TeamState[]): RoundState {
       [x]: { ...grid[x], [y]: [...grid[x][y], team] },
     } as typeof grid;
   }
-  return { phase: 'battle', round: 1, grid, forbiddenCells: [] };
+  return {
+    phase: 'battle',
+    round: 1,
+    grid,
+    forbiddenCells: [],
+    deck,
+    graveyard: [],
+  };
 }
 
 const fireWater: GridCoord = { x: 'fire', y: 'water' };
@@ -70,17 +84,13 @@ describe('runRound', () => {
   function makeInputs(
     opts: {
       plays?: readonly BattlePlay[];
-      forbidden?: readonly [ElementCard, ElementCard];
-      movementAttribute?: 'fire' | 'water' | 'wood';
       teamMoves?: readonly TeamMove[];
       revivalChoices?: ReadonlyMap<TeamId, RevivalAction>;
     } = {},
   ): RoundInputs {
     return {
       battle: { plays: opts.plays ?? [] },
-      forbidden: { drawnCards: opts.forbidden ?? [fire5, water3] },
       movement: {
-        attribute: opts.movementAttribute ?? 'fire',
         teamMoves: opts.teamMoves ?? [],
       },
       revival: { choices: opts.revivalChoices ?? new Map() },
@@ -148,12 +158,80 @@ describe('runRound', () => {
       life: 4,
       gridCards: [wood1, wood4],
     });
-    const s = stateWith([teamA, teamB]);
-    const out = runRound(s, makeInputs({ forbidden: [water3, fire5] }));
+    const s = stateWithDeck([teamA, teamB], [water3, fire5, wood4]);
+    const out = runRound(s, makeInputs());
     const forbiddenLogs = out.log.filter((e) => e.phase === 'forbidden');
     expect(forbiddenLogs).toHaveLength(1);
     expect(forbiddenLogs[0]?.message).toContain('water');
     expect(forbiddenLogs[0]?.message).toContain('fire');
+  });
+
+  it('maps a joker forbidden draw to fire deterministically', () => {
+    const teamA = makeTeam({
+      id: 1 as NumberToken,
+      position: fireWater,
+      life: 4,
+      gridCards: [fire5, water3],
+    });
+    const teamB = makeTeam({
+      id: 2 as NumberToken,
+      position: waterWater,
+      life: 4,
+      gridCards: [wood1, wood4],
+    });
+    const s = stateWithDeck([teamA, teamB], [joker, water3, wood4]);
+    const out = runRound(s, makeInputs());
+    const forbiddenLogs = out.log.filter((e) => e.phase === 'forbidden');
+
+    expect(forbiddenLogs).toHaveLength(1);
+    expect(forbiddenLogs[0]?.message).toContain('fire');
+    expect(forbiddenLogs[0]?.message).toContain('water');
+    expect(out.state.forbiddenCells).toContainEqual({ x: 'fire', y: 'water' });
+  });
+
+  it('draws forbidden and movement cards from deck and shrinks it by 3', () => {
+    const teamA = makeTeam({
+      id: 1 as NumberToken,
+      position: fireWater,
+      life: 4,
+      gridCards: [fire5, water3],
+    });
+    const teamB = makeTeam({
+      id: 2 as NumberToken,
+      position: waterWater,
+      life: 4,
+      gridCards: [wood1, wood4],
+    });
+    const s = stateWithDeck([teamA, teamB], [fire5, water3, wood4]);
+    const out = runRound(s, makeInputs());
+
+    expect(out.state.deck).toEqual([]);
+    expect(out.state.forbiddenCells).toContainEqual({ x: 'fire', y: 'water' });
+  });
+
+  it('logs deck exhaustion and skips movement when only forbidden draw succeeds', () => {
+    const teamA = makeTeam({
+      id: 1 as NumberToken,
+      position: fireWater,
+      life: 4,
+      gridCards: [fire5, water3],
+    });
+    const teamB = makeTeam({
+      id: 2 as NumberToken,
+      position: waterWater,
+      life: 4,
+      gridCards: [wood1, wood4],
+    });
+    const s = stateWithDeck([teamA, teamB], [fire5, water3]);
+    const out = runRound(s, makeInputs());
+
+    expect(out.state.deck).toEqual([]);
+    expect(
+      out.log.some((e) =>
+        e.message.includes('Movement phase skipped: deck exhausted'),
+      ),
+    ).toBe(true);
+    expect(out.state.forbiddenCells).toContainEqual({ x: 'fire', y: 'water' });
   });
 
   it('stops early when game ends mid-round (battle eliminates loser)', () => {
@@ -242,8 +320,7 @@ describe('runUntilGameOver', () => {
           { teamId: 2 as NumberToken, card: wood4 },
         ],
       },
-      forbidden: { drawnCards: [fire5, water3] },
-      movement: { attribute: 'fire', teamMoves: [] },
+      movement: { teamMoves: [] },
       revival: { choices: new Map() },
     });
 
@@ -269,8 +346,12 @@ describe('runUntilGameOver', () => {
       life: 4,
       gridCards: [wood1, wood4],
     });
-    const s = stateWith([teamA, teamB]);
-    const woodPin: ElementCard = { kind: 'element', element: 'wood', value: 1 };
+    const safeDeck: Card[] = Array.from({ length: 5 }, () => [
+      wood1,
+      wood1,
+      fire5,
+    ]).flat();
+    const s = stateWithDeck([teamA, teamB], safeDeck);
     const provider: InputProvider = () => ({
       battle: {
         plays: [
@@ -278,9 +359,7 @@ describe('runUntilGameOver', () => {
           { teamId: 2 as NumberToken, card: null },
         ],
       },
-      // Forbidden cell at (wood, wood) — neither team occupies it.
-      forbidden: { drawnCards: [woodPin, woodPin] },
-      movement: { attribute: 'fire', teamMoves: [] },
+      movement: { teamMoves: [] },
       revival: { choices: new Map() },
     });
     const result = runUntilGameOver(s, provider, 5);
@@ -302,9 +381,7 @@ describe('runUntilGameOver', () => {
             card: joker as Card,
           })),
         },
-        forbidden: { drawnCards: [fire5, water3] },
         movement: {
-          attribute: 'fire',
           teamMoves: teams.map((t) => ({
             teamId: t.teamNumber,
             card: fire5 as Card,
