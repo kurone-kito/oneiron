@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_CONFIG } from '../config.ts';
-import type { Card, JokerCard } from '../types/card.ts';
+import type { Card, ElementCard, JokerCard } from '../types/card.ts';
 import type { GridCoord, TeamState } from '../types/grid.ts';
 import { ELEMENT_AXIS } from '../types/grid.ts';
 import type { NumberToken, TeamId } from '../types/token.ts';
@@ -232,6 +232,36 @@ describe('runRound', () => {
       ),
     ).toBe(true);
     expect(out.state.forbiddenCells).toContainEqual({ x: 'fire', y: 'water' });
+  });
+
+  it('logs deck exhaustion and skips forbidden when deck has fewer than 2 cards', () => {
+    const teamA = makeTeam({
+      id: 1 as NumberToken,
+      position: fireWater,
+      life: 4,
+      gridCards: [fire5, water3],
+    });
+    const teamB = makeTeam({
+      id: 2 as NumberToken,
+      position: waterWater,
+      life: 4,
+      gridCards: [wood1, wood4],
+    });
+    const s = stateWithDeck([teamA, teamB], []);
+    const out = runRound(s, makeInputs());
+
+    expect(out.state.deck).toEqual([]);
+    expect(
+      out.log.some((e) =>
+        e.message.includes('Forbidden phase skipped: deck exhausted'),
+      ),
+    ).toBe(true);
+    expect(
+      out.log.some((e) =>
+        e.message.includes('Movement phase skipped: deck exhausted'),
+      ),
+    ).toBe(true);
+    expect(out.state.forbiddenCells).toEqual([]);
   });
 
   it('stops early when game ends mid-round (battle eliminates loser)', () => {
