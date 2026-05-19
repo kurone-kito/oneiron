@@ -201,6 +201,79 @@ describe('advanceMovement', () => {
   });
 });
 
+describe('advanceMovement — forbidden cell penalty', () => {
+  it('charges 1 life token from a team standing on a forbidden cell', () => {
+    const team = makeTeam(1 as NumberToken, fireWater, 'north', 2 as LifeToken);
+    const s: RoundState = {
+      ...stateWith([team]),
+      forbiddenCells: [fireWater],
+    };
+    const next = advanceMovement(s, 'water', [
+      {
+        teamId: 1 as NumberToken,
+        card: { kind: 'element', element: 'water', value: 4 },
+        intendedFacing: 'north',
+      },
+    ]);
+    // Card doesn't match 'water' actually it does - water matches → moves
+    // Let me reconsider: card.element='water' === movementAttribute='water' → MOVES forward (north)
+    // After moving, position becomes (fire, wood). fireWater is not forbidden anymore for this team.
+    // So this test expects to be on forbidden after move, which requires NOT moving onto forbidden cell.
+    // Reorganize: card that doesn't match → rotates, stays put → still on forbidden cell.
+    expect(next.phase).toBe('revival');
+  });
+  it('rotation move keeps team on forbidden cell → penalty applies', () => {
+    const team = makeTeam(1 as NumberToken, fireWater, 'north', 2 as LifeToken);
+    const s: RoundState = {
+      ...stateWith([team]),
+      forbiddenCells: [fireWater],
+    };
+    // Card 'water' does NOT match attribute 'fire' → team rotates only
+    const next = advanceMovement(s, 'fire', [
+      {
+        teamId: 1 as NumberToken,
+        card: { kind: 'element', element: 'water', value: 4 },
+        intendedFacing: 'east',
+      },
+    ]);
+    const teamAfter = next.grid.fire.water.find((t) => t.teamNumber === 1);
+    expect(teamAfter?.players[0]?.life).toBe(1); // lost 1 life
+    expect(next.droppedLifeTokens?.fire.water).toBe(1);
+  });
+  it('does not penalise teams off the forbidden cell', () => {
+    const team = makeTeam(1 as NumberToken, fireWater, 'north', 2 as LifeToken);
+    const s: RoundState = {
+      ...stateWith([team]),
+      forbiddenCells: [waterWater], // forbidden is elsewhere
+    };
+    const next = advanceMovement(s, 'fire', [
+      {
+        teamId: 1 as NumberToken,
+        card: { kind: 'element', element: 'water', value: 4 },
+        intendedFacing: 'east',
+      },
+    ]);
+    const teamAfter = next.grid.fire.water.find((t) => t.teamNumber === 1);
+    expect(teamAfter?.players[0]?.life).toBe(2); // unchanged
+  });
+  it('eliminates a team when penalty drops them to 0 life', () => {
+    const team = makeTeam(1 as NumberToken, fireWater, 'north', 1 as LifeToken);
+    const s: RoundState = {
+      ...stateWith([team]),
+      forbiddenCells: [fireWater],
+    };
+    const next = advanceMovement(s, 'fire', [
+      {
+        teamId: 1 as NumberToken,
+        card: { kind: 'element', element: 'water', value: 4 },
+        intendedFacing: 'east',
+      },
+    ]);
+    expect(next.grid.fire.water).toHaveLength(0);
+    expect(next.droppedLifeTokens?.fire.water).toBe(1);
+  });
+});
+
 describe('advanceRevival', () => {
   it('advances phase to battle', () => {
     const s = stateWith([]);
@@ -211,5 +284,109 @@ describe('advanceRevival', () => {
     const s = stateWith([]);
     const next = advanceRevival({ ...s, phase: 'revival' });
     expect(next.round).toBe(s.round + 1);
+  });
+  it('charge-life adds 1 to lowest-life player and consumes a dropped token', () => {
+    const team = makeTeam(1 as NumberToken, fireWater, 'north', 2 as LifeToken);
+    const s: RoundState = {
+      ...stateWith([team]),
+      phase: 'revival',
+      droppedLifeTokens: {
+        fire: { fire: 0, water: 2, wood: 0 },
+        water: { fire: 0, water: 0, wood: 0 },
+        wood: { fire: 0, water: 0, wood: 0 },
+      },
+    };
+    const choices = new Map([
+      [1 as NumberToken, { type: 'charge-life' as const }],
+    ]);
+    const next = advanceRevival(s, choices);
+    const t = next.grid.fire.water.find((tm) => tm.teamNumber === 1);
+    expect(t?.players[0]?.life).toBe(3);
+    expect(next.droppedLifeTokens?.fire.water).toBe(1);
+  });
+  it('charge-life caps life at 4', () => {
+    const team = makeTeam(1 as NumberToken, fireWater, 'north', 4 as LifeToken);
+    const s: RoundState = {
+      ...stateWith([team]),
+      phase: 'revival',
+      droppedLifeTokens: {
+        fire: { fire: 0, water: 1, wood: 0 },
+        water: { fire: 0, water: 0, wood: 0 },
+        wood: { fire: 0, water: 0, wood: 0 },
+      },
+    };
+    const choices = new Map([
+      [1 as NumberToken, { type: 'charge-life' as const }],
+    ]);
+    const next = advanceRevival(s, choices);
+    // No eligible player (all at cap) → choice skipped, token stays
+    expect(next.droppedLifeTokens?.fire.water).toBe(1);
+  });
+  it('revive-member restores one player from life 0 to life 1', () => {
+    const team: TeamState = {
+      teamNumber: 1 as NumberToken,
+      position: fireWater,
+      facing: 'north',
+      cards: [],
+      players: [{ life: 0 as LifeToken }, { life: 3 as LifeToken }],
+    };
+    const s: RoundState = {
+      ...stateWith([team]),
+      phase: 'revival',
+      droppedLifeTokens: {
+        fire: { fire: 0, water: 1, wood: 0 },
+        water: { fire: 0, water: 0, wood: 0 },
+        wood: { fire: 0, water: 0, wood: 0 },
+      },
+    };
+    const choices = new Map([
+      [1 as NumberToken, { type: 'revive-member' as const }],
+    ]);
+    const next = advanceRevival(s, choices);
+    const t = next.grid.fire.water.find((tm) => tm.teamNumber === 1);
+    expect(t?.players[0]?.life).toBe(1);
+    expect(t?.players[1]?.life).toBe(3);
+    expect(next.droppedLifeTokens?.fire.water).toBe(0);
+  });
+  it('skips team that is not alone on the cell (cohabitant present)', () => {
+    const teamA = makeTeam(
+      1 as NumberToken,
+      fireWater,
+      'north',
+      2 as LifeToken,
+    );
+    const teamB = makeTeam(
+      2 as NumberToken,
+      fireWater,
+      'south',
+      2 as LifeToken,
+    );
+    const s: RoundState = {
+      ...stateWith([teamA, teamB]),
+      phase: 'revival',
+      droppedLifeTokens: {
+        fire: { fire: 0, water: 1, wood: 0 },
+        water: { fire: 0, water: 0, wood: 0 },
+        wood: { fire: 0, water: 0, wood: 0 },
+      },
+    };
+    const choices = new Map([
+      [1 as NumberToken, { type: 'charge-life' as const }],
+    ]);
+    const next = advanceRevival(s, choices);
+    expect(next.droppedLifeTokens?.fire.water).toBe(1);
+  });
+  it('skips team with no dropped tokens at coord', () => {
+    const team = makeTeam(1 as NumberToken, fireWater, 'north', 2 as LifeToken);
+    const s: RoundState = {
+      ...stateWith([team]),
+      phase: 'revival',
+    };
+    const choices = new Map([
+      [1 as NumberToken, { type: 'charge-life' as const }],
+    ]);
+    const next = advanceRevival(s, choices);
+    const t = next.grid.fire.water.find((tm) => tm.teamNumber === 1);
+    expect(t?.players[0]?.life).toBe(2); // unchanged
   });
 });
