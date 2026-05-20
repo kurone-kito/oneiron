@@ -91,6 +91,13 @@ export type TeamMove = {
   readonly card: Card;
   /** Facing the team chose when presenting the card (step 3 of movement). */
   readonly intendedFacing: Facing;
+  /**
+   * Which of the team's two `gridCards` slots to replace with `card`
+   * after movement is applied (rules.ja.md §Movement 6). Defaults to
+   * slot 0 when omitted. Ignored for teams that have no `gridCards`
+   * (legacy state).
+   */
+  readonly gridSwapIndex?: 0 | 1;
 };
 
 /** Returns a blank 3×3 grid with no teams. */
@@ -287,15 +294,62 @@ function removeTeamFromGrid(grid: Grid, team: TeamState): Grid {
 }
 
 /**
+ * Locates the first card in `hand` matching `played` by structural
+ * equality (Joker matches any joker; ElementCard matches identical
+ * element + value). Returns -1 when no match exists.
+ */
+function findMoveCardIndex(hand: Deck, played: Card): number {
+  if (played.kind === 'joker') {
+    return hand.findIndex((c) => c.kind === 'joker');
+  }
+  return hand.findIndex(
+    (c) =>
+      c.kind === 'element' &&
+      c.element === played.element &&
+      c.value === played.value,
+  );
+}
+
+function describeMoveCard(card: Card): string {
+  return card.kind === 'joker' ? 'Joker' : `${card.element} ${card.value}`;
+}
+
+/**
+ * Pre-validation: every move whose team has `gridCards` must
+ * reference a card in that team's hand. Legacy teams without
+ * `gridCards` skip validation (and the swap below). Throws
+ * RangeError on the first violation.
+ */
+function validateMoves(grid: Grid, teamMoves: readonly TeamMove[]): void {
+  for (const move of teamMoves) {
+    const team = findTeam(grid, move.teamId);
+    if (team === undefined) continue;
+    if (team.gridCards === undefined) continue;
+    if (findMoveCardIndex(team.cards, move.card) === -1) {
+      throw new RangeError(
+        `Team ${move.teamId} cannot play ${describeMoveCard(move.card)} for movement: not in hand.`,
+      );
+    }
+  }
+}
+
+/**
  * Processes the movement phase. For each team that revealed a card:
  * - If card element matches movementAttribute (or is a joker): move
  *   the team one cell in its current facing direction (off-grid is
  *   prevented by `stepForward` which clamps to the edge).
  * - Otherwise: update the team's facing to intendedFacing.
  *
- * After all moves, applies the forbidden-cell penalty per
- * rules.ja.md §Movement 7: any team whose new position is on a
- * forbidden cell loses 1 life token (lowest-life player charged
+ * After the move/rotate, when the team has `gridCards`:
+ * - Remove the played card from the team's hand.
+ * - Replace `gridCards[gridSwapIndex]` (default 0) with the played card.
+ * - Append the displaced grid card to `state.graveyard`.
+ *
+ * Teams without `gridCards` (legacy state) skip the swap silently.
+ *
+ * After all moves and swaps, applies the forbidden-cell penalty
+ * per rules.ja.md §Movement 7: any team whose new position is on
+ * a forbidden cell loses 1 life token (lowest-life player charged
  * first). Self-elimination via penalty removes the team from the
  * grid but does not trigger card theft.
  *
@@ -307,6 +361,9 @@ export function advanceMovement(
   teamMoves: readonly TeamMove[],
 ): RoundState {
   let grid = state.grid;
+  let graveyard: readonly Card[] = state.graveyard ?? [];
+
+  validateMoves(grid, teamMoves);
 
   for (const move of teamMoves) {
     const team = findTeam(grid, move.teamId);
@@ -322,6 +379,30 @@ export function advanceMovement(
       updated = { ...team, position: newPos };
     } else {
       updated = { ...team, facing: move.intendedFacing };
+    }
+
+    // Apply grid-card swap when the team has positioned cards.
+    if (team.gridCards !== undefined) {
+      const handIdx = findMoveCardIndex(team.cards, move.card);
+      if (handIdx !== -1) {
+        const newHand = [
+          ...team.cards.slice(0, handIdx),
+          ...team.cards.slice(handIdx + 1),
+        ];
+        const slot: 0 | 1 = move.gridSwapIndex ?? 0;
+        const oldGridCard = team.gridCards[slot] as Card;
+        const newGridCards: [Card, Card] = [
+          team.gridCards[0],
+          team.gridCards[1],
+        ];
+        newGridCards[slot] = move.card;
+        graveyard = [...graveyard, oldGridCard];
+        updated = {
+          ...updated,
+          cards: newHand,
+          gridCards: newGridCards,
+        };
+      }
     }
 
     grid = replaceTeamInGrid(grid, team.position, updated);
@@ -346,7 +427,7 @@ export function advanceMovement(
       : replaceTeamInGrid(grid, team.position, damagedTeam);
   }
 
-  return { ...state, phase: 'revival', grid, droppedLifeTokens };
+  return { ...state, phase: 'revival', grid, droppedLifeTokens, graveyard };
 }
 
 /** A team's chosen recovery action when a dropped token is salvageable. */
