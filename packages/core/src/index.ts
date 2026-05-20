@@ -6,6 +6,7 @@ export * from './logic/resolve.ts';
 export * from './logic/round.ts';
 export * from './logic/runner.ts';
 export * from './logic/setup.ts';
+export * from './session/session.ts';
 export * from './strategy/random.ts';
 export * from './strategy/strategy.ts';
 export * from './types/card.ts';
