@@ -1,5 +1,7 @@
 import type { Card, Deck, ElementCard } from '../types/card.ts';
 import { isElementCard } from '../types/card.ts';
+import type { Facing, TeamState } from '../types/grid.ts';
+import { ELEMENT_AXIS } from '../types/grid.ts';
 import type { LogEntry } from '../types/log.ts';
 import type { TeamId } from '../types/token.ts';
 import type { BattlePlay } from './battle.ts';
@@ -18,6 +20,30 @@ import {
   winner,
 } from './round.ts';
 
+type ExplicitMovementChoice = {
+  readonly teamId: TeamId;
+  readonly intendedFacing: Facing;
+  readonly gridSwapIndex?: 0 | 1;
+  /** Explicit card choice for a team that already has cards in hand. */
+  readonly card: Card;
+};
+
+type EmergencyDrawMovementChoice = {
+  readonly teamId: TeamId;
+  readonly intendedFacing: Facing;
+  readonly gridSwapIndex?: 0 | 1;
+  /**
+   * Optional emergency-draw pick for a hand-empty team. `0` chooses
+   * the first drawn card, `1` the second. When omitted or unavailable,
+   * the runner falls back to the first drawn card.
+   */
+  readonly emergencyDrawPick?: 0 | 1;
+};
+
+export type MovementChoice =
+  | ExplicitMovementChoice
+  | EmergencyDrawMovementChoice;
+
 /**
  * Inputs for a single round, one bundle per phase.
  *
@@ -31,7 +57,7 @@ export type RoundInputs = {
     readonly plays: readonly BattlePlay[];
   };
   readonly movement: {
-    readonly teamMoves: readonly TeamMove[];
+    readonly teamMoves: readonly MovementChoice[];
   };
   readonly revival: {
     readonly choices: ReadonlyMap<TeamId, RevivalAction>;
@@ -82,6 +108,125 @@ const JOKER_FORBIDDEN_FALLBACK: ElementCard = {
 
 function coerceToElementCard(card: Card): ElementCard {
   return isElementCard(card) ? card : JOKER_FORBIDDEN_FALLBACK;
+}
+
+function allTeams(state: RoundState): TeamState[] {
+  const teams: TeamState[] = [];
+  for (const x of ELEMENT_AXIS) {
+    for (const y of ELEMENT_AXIS) {
+      teams.push(...state.grid[x][y]);
+    }
+  }
+  return teams;
+}
+
+function findTeam(state: RoundState, teamId: TeamId): TeamState | undefined {
+  return allTeams(state).find((team) => team.teamNumber === teamId);
+}
+
+function isTeamAlive(team: TeamState): boolean {
+  return team.players.some((player) => player.life > 0);
+}
+
+function updateTeam(state: RoundState, updated: TeamState): RoundState {
+  const { x, y } = updated.position;
+  return {
+    ...state,
+    grid: {
+      ...state.grid,
+      [x]: {
+        ...state.grid[x],
+        [y]: state.grid[x][y].map((team) =>
+          team.teamNumber === updated.teamNumber ? updated : team,
+        ),
+      },
+    },
+  } as RoundState;
+}
+
+function resolveMovementChoices(
+  state: RoundState,
+  movementChoices: readonly MovementChoice[],
+  round: number,
+  log: LogEntry[],
+): { state: RoundState; teamMoves: readonly TeamMove[] } {
+  let next = state;
+  const resolvedMoves: TeamMove[] = [];
+  const choicesByTeam = new Map<TeamId, MovementChoice>();
+  for (const choice of movementChoices) {
+    choicesByTeam.set(choice.teamId, choice);
+  }
+
+  const candidateIds = new Set<TeamId>(choicesByTeam.keys());
+  for (const team of allTeams(next)) {
+    if (!isTeamAlive(team)) continue;
+    if (team.cards.length === 0) {
+      candidateIds.add(team.teamNumber);
+    }
+  }
+
+  const orderedTeamIds = [...candidateIds].sort((a, b) => a - b);
+  for (const teamId of orderedTeamIds) {
+    const team = findTeam(next, teamId);
+    if (team === undefined || !isTeamAlive(team)) continue;
+
+    const choice = choicesByTeam.get(teamId);
+    if (team.cards.length === 0) {
+      // Simultaneous reveals need a deterministic engine order when
+      // multiple teams draw from the shared deck in the same step.
+      const emergencyDraw = drawFromDeck(next.deck, 2);
+      next = { ...next, deck: emergencyDraw.remaining };
+      if (emergencyDraw.drawn.length === 0) {
+        log.push({
+          round,
+          phase: 'movement',
+          message: `Team ${teamId} had no cards in hand and the deck was exhausted`,
+        });
+        continue;
+      }
+
+      const replenishedTeam: TeamState = {
+        ...team,
+        cards: [...team.cards, ...emergencyDraw.drawn],
+      };
+      next = updateTeam(next, replenishedTeam);
+      const selectedDrawIndex =
+        choice !== undefined && 'emergencyDrawPick' in choice
+          ? (choice.emergencyDrawPick ?? 0)
+          : 0;
+      const selectedCard =
+        emergencyDraw.drawn[selectedDrawIndex] ?? emergencyDraw.drawn[0];
+
+      resolvedMoves.push({
+        teamId,
+        card: selectedCard as Card,
+        intendedFacing: choice?.intendedFacing ?? team.facing,
+        ...(choice?.gridSwapIndex !== undefined
+          ? { gridSwapIndex: choice.gridSwapIndex }
+          : {}),
+      });
+
+      log.push({
+        round,
+        phase: 'movement',
+        message: `Team ${teamId} drew ${emergencyDraw.drawn.length} card(s) for the empty-hand movement fallback`,
+      });
+      continue;
+    }
+
+    if (choice === undefined) continue;
+
+    resolvedMoves.push({
+      teamId,
+      card: 'card' in choice ? choice.card : (team.cards[0] as Card),
+      intendedFacing: choice.intendedFacing,
+      ...(choice.gridSwapIndex !== undefined
+        ? { gridSwapIndex: choice.gridSwapIndex }
+        : {}),
+    });
+  }
+
+  return { state: next, teamMoves: resolvedMoves };
 }
 
 /**
@@ -154,16 +299,26 @@ export function runRound(state: RoundState, inputs: RoundInputs): RoundOutput {
   } else {
     const drawn = moveDraw.drawn[0] as Card;
     const attrCard = coerceToElementCard(drawn);
-    const beforeMovement: RoundState = { ...next, deck: moveDraw.remaining };
+    const movementInputState: RoundState = {
+      ...next,
+      deck: moveDraw.remaining,
+    };
+    const resolvedMovement = resolveMovementChoices(
+      movementInputState,
+      inputs.movement.teamMoves,
+      round,
+      log,
+    );
+    const beforeMovement = resolvedMovement.state;
     next = advanceMovement(
       beforeMovement,
       attrCard.element,
-      inputs.movement.teamMoves,
+      resolvedMovement.teamMoves,
     );
     log.push({
       round,
       phase: 'movement',
-      message: `Movement attribute: ${attrCard.element} (${inputs.movement.teamMoves.length} moves submitted)`,
+      message: `Movement attribute: ${attrCard.element} (${resolvedMovement.teamMoves.length} moves submitted)`,
     });
     const movementPenalties = countTokenDelta(beforeMovement, next);
     if (movementPenalties > 0) {
