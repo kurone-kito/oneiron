@@ -1,4 +1,5 @@
-import type { Element, ElementCard } from '../types/card.ts';
+import type { Card, Deck, ElementCard } from '../types/card.ts';
+import { isElementCard } from '../types/card.ts';
 import type { LogEntry } from '../types/log.ts';
 import type { TeamId } from '../types/token.ts';
 import type { BattlePlay } from './battle.ts';
@@ -17,16 +18,19 @@ import {
   winner,
 } from './round.ts';
 
-/** Inputs for a single round, one bundle per phase. */
+/**
+ * Inputs for a single round, one bundle per phase.
+ *
+ * Forbidden and movement-attribute draws are NOT in inputs — they
+ * come from `state.deck`, drawn by the runner. Callers only supply
+ * player-controlled decisions (battle plays, movement choices,
+ * revival actions).
+ */
 export type RoundInputs = {
   readonly battle: {
     readonly plays: readonly BattlePlay[];
   };
-  readonly forbidden: {
-    readonly drawnCards: readonly [ElementCard, ElementCard];
-  };
   readonly movement: {
-    readonly attribute: Element;
     readonly teamMoves: readonly TeamMove[];
   };
   readonly revival: {
@@ -50,12 +54,49 @@ function battleLogMessage(result: BattleResult): string {
 }
 
 /**
+ * Draws up to `count` cards from the head of the deck.
+ * Returns the drawn cards (in original order) and the remaining deck.
+ * Caller is responsible for handling fewer-than-`count` draws.
+ */
+function drawFromDeck(
+  deck: Deck | undefined,
+  count: number,
+): { drawn: readonly Card[]; remaining: Deck } {
+  const source = deck ?? [];
+  const drawn = source.slice(0, count);
+  const remaining = source.slice(count);
+  return { drawn, remaining };
+}
+
+/**
+ * Forbidden-phase Joker fallback: when the GM "draws" a Joker for
+ * the forbidden cell coordinate, the rules call for an "attribute
+ * card" but don't define joker semantics for the forbidden marker.
+ * v1 uses 'fire' as a deterministic fallback element coordinate.
+ */
+const JOKER_FORBIDDEN_FALLBACK: ElementCard = {
+  kind: 'element',
+  element: 'fire',
+  value: 1,
+};
+
+function coerceToElementCard(card: Card): ElementCard {
+  return isElementCard(card) ? card : JOKER_FORBIDDEN_FALLBACK;
+}
+
+/**
  * Runs the four phases of a single round in order:
  *   battle → forbidden → movement → revival.
  *
  * After each phase, checks {@link isGameOver}; if true, subsequent
  * phases are skipped and the partial log is returned. Battle results
  * are always taken from the (possibly empty) battle phase output.
+ *
+ * Forbidden and movement-attribute cards are drawn from
+ * `state.deck`. When the deck has fewer cards than the phase
+ * requires, the phase is skipped and a "deck exhausted" log entry
+ * is recorded (the game continues with no new forbidden cell or no
+ * movement that round).
  *
  * Note: the returned state's `round` number is incremented by the
  * revival phase to indicate the next round. If revival is skipped
@@ -77,38 +118,61 @@ export function runRound(state: RoundState, inputs: RoundInputs): RoundOutput {
     return { state: next, battleResults, log };
   }
 
-  // Phase 2: forbidden
-  next = advanceForbidden(next, inputs.forbidden.drawnCards);
-  const f = inputs.forbidden.drawnCards;
-  log.push({
-    round,
-    phase: 'forbidden',
-    message: `New forbidden cell: (${f[0].element}, ${f[1].element})`,
-  });
+  // Phase 2: forbidden — draw 2 cards from state.deck.
+  const forbiddenDraw = drawFromDeck(next.deck, 2);
+  if (forbiddenDraw.drawn.length < 2) {
+    log.push({
+      round,
+      phase: 'forbidden',
+      message: 'Deck exhausted: forbidden phase skipped',
+    });
+  } else {
+    const cardX = coerceToElementCard(forbiddenDraw.drawn[0] as Card);
+    const cardY = coerceToElementCard(forbiddenDraw.drawn[1] as Card);
+    next = advanceForbidden({ ...next, deck: forbiddenDraw.remaining }, [
+      cardX,
+      cardY,
+    ]);
+    log.push({
+      round,
+      phase: 'forbidden',
+      message: `New forbidden cell: (${cardX.element}, ${cardY.element})`,
+    });
+  }
   if (isGameOver(next)) {
     return { state: next, battleResults, log };
   }
 
-  // Phase 3: movement
-  const beforeMovement = next;
-  next = advanceMovement(
-    next,
-    inputs.movement.attribute,
-    inputs.movement.teamMoves,
-  );
-  log.push({
-    round,
-    phase: 'movement',
-    message: `Movement attribute: ${inputs.movement.attribute} (${inputs.movement.teamMoves.length} moves submitted)`,
-  });
-  // Tally any forbidden-cell penalties applied during movement.
-  const movementPenalties = countTokenDelta(beforeMovement, next);
-  if (movementPenalties > 0) {
+  // Phase 3: movement — draw 1 card from state.deck for attribute.
+  const moveDraw = drawFromDeck(next.deck, 1);
+  if (moveDraw.drawn.length < 1) {
     log.push({
       round,
       phase: 'movement',
-      message: `Forbidden-cell penalty dropped ${movementPenalties} life token(s)`,
+      message: 'Deck exhausted: movement phase skipped',
     });
+  } else {
+    const drawn = moveDraw.drawn[0] as Card;
+    const attrCard = coerceToElementCard(drawn);
+    const beforeMovement: RoundState = { ...next, deck: moveDraw.remaining };
+    next = advanceMovement(
+      beforeMovement,
+      attrCard.element,
+      inputs.movement.teamMoves,
+    );
+    log.push({
+      round,
+      phase: 'movement',
+      message: `Movement attribute: ${attrCard.element} (${inputs.movement.teamMoves.length} moves submitted)`,
+    });
+    const movementPenalties = countTokenDelta(beforeMovement, next);
+    if (movementPenalties > 0) {
+      log.push({
+        round,
+        phase: 'movement',
+        message: `Forbidden-cell penalty dropped ${movementPenalties} life token(s)`,
+      });
+    }
   }
   if (isGameOver(next)) {
     return { state: next, battleResults, log };

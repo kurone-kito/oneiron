@@ -1,4 +1,4 @@
-import type { Card, Element, ElementCard } from '../types/card.ts';
+import type { Card, Deck, Element, ElementCard } from '../types/card.ts';
 import type {
   ElementCoordinate,
   Facing,
@@ -43,6 +43,23 @@ export type RoundState = {
    * the wave-4 battle-damage extension.
    */
   readonly droppedLifeTokens?: DroppedTokens;
+  /**
+   * Remaining shuffled deck. The runner pops cards from here during
+   * forbidden and movement phases; the revival phase consumes cards
+   * for deck-draw bonuses (#112). Optional for backward
+   * compatibility — when undefined, phases requiring a draw skip
+   * with a "deck exhausted" log entry.
+   */
+  readonly deck?: Deck;
+  /**
+   * Discarded card pile. Cards consumed during battle (played
+   * cards, forfeit drops) and movement (swapped grid cards) are
+   * appended here. Forbidden / movement draws are conceptually
+   * consumed (placed on the grid as markers / phase results) and
+   * do NOT pass through the graveyard. Optional for backward
+   * compatibility.
+   */
+  readonly graveyard?: Deck;
 };
 
 /**
