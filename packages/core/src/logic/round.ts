@@ -439,6 +439,22 @@ export type RevivalAction =
 const REVIVAL_LIFE_CAP = 4;
 
 /**
+ * Pops up to `count` cards from the front of `deck` and returns
+ * the drawn portion plus the remaining deck. If `deck` has fewer
+ * cards than `count`, returns however many are available (no
+ * throw — gracefully degrade).
+ */
+function drawCardsFromDeck(
+  deck: Deck | undefined,
+  count: number,
+): { drawn: readonly Card[]; remaining: Deck } {
+  const source = deck ?? [];
+  const drawn = source.slice(0, count);
+  const remaining = source.slice(count);
+  return { drawn, remaining };
+}
+
+/**
  * Advances from revival to the next round's battle phase.
  *
  * For each surviving team whose current coordinate has at least one
@@ -446,11 +462,13 @@ const REVIVAL_LIFE_CAP = 4;
  * (v1 eligibility rule — refine via playtest if needed), apply the
  * caller-provided RevivalAction:
  *
- * - **`revive-member`**: restore one eliminated player (life 0 → 1).
- *   Bonus card draw not yet modelled (pending card-economy work).
+ * - **`revive-member`**: restore one eliminated player (life 0 → 1)
+ *   and draw 1 bonus card from `state.deck` into the team's hand
+ *   when available (rules.ja.md §Revival 2).
  * - **`charge-life`**: add 1 life to the lowest-life living player,
- *   clamped to 4. Skip when no eligible player.
- * - **`charge-cards`**: no-op in v1 (deck-draw not yet modelled).
+ *   clamped to 4. No deck draw. Skip when no eligible player.
+ * - **`charge-cards`**: draw 3 cards from `state.deck` into the
+ *   team's hand. Partial draw when fewer cards remain.
  *
  * Each consumed action decrements `droppedLifeTokens` at the team's
  * coordinate by 1. Phase advances to `'battle'` and round number
@@ -462,6 +480,7 @@ export function advanceRevival(
 ): RoundState {
   let grid = state.grid;
   let droppedLifeTokens = state.droppedLifeTokens ?? createEmptyDroppedTokens();
+  let deck: Deck = state.deck ?? [];
 
   for (const team of allTeams(grid)) {
     if (!isTeamAliveTeam(team)) continue;
@@ -486,7 +505,14 @@ export function advanceRevival(
         const newPlayers = team.players.map((p, i) =>
           i === idx ? { life: createLifeToken(1) } : p,
         );
-        updatedTeam = { ...team, players: newPlayers };
+        // Bonus: draw 1 card from the deck into the team's hand.
+        const draw = drawCardsFromDeck(deck, 1);
+        deck = draw.remaining;
+        updatedTeam = {
+          ...team,
+          players: newPlayers,
+          cards: [...team.cards, ...draw.drawn],
+        };
         consumed = true;
         break;
       }
@@ -510,7 +536,13 @@ export function advanceRevival(
         break;
       }
       case 'charge-cards': {
-        // No-op in v1: deck-draw protocol not yet modelled.
+        // Draw 3 cards (or however many remain) from the deck.
+        const draw = drawCardsFromDeck(deck, 3);
+        deck = draw.remaining;
+        updatedTeam = {
+          ...team,
+          cards: [...team.cards, ...draw.drawn],
+        };
         consumed = true;
         break;
       }
@@ -529,6 +561,7 @@ export function advanceRevival(
     round: state.round + 1,
     grid,
     droppedLifeTokens,
+    deck,
   };
 }
 

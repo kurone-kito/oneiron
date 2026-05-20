@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { ElementCard, JokerCard } from '../types/card.ts';
+import type { Card, ElementCard, JokerCard } from '../types/card.ts';
 import type { Facing, GridCoord, TeamState } from '../types/grid.ts';
 import type { LifeToken, NumberToken } from '../types/token.ts';
 import { createLifeToken } from '../types/token.ts';
@@ -523,5 +523,118 @@ describe('advanceRevival', () => {
     const next = advanceRevival(s, choices);
     const t = next.grid.fire.water.find((tm) => tm.teamNumber === 1);
     expect(t?.players[0]?.life).toBe(2); // unchanged
+  });
+});
+
+describe('advanceRevival — deck-draw bonuses', () => {
+  const fire5: ElementCard = { kind: 'element', element: 'fire', value: 5 };
+  const water3: ElementCard = { kind: 'element', element: 'water', value: 3 };
+  const wood1: ElementCard = { kind: 'element', element: 'wood', value: 1 };
+
+  function stateWithDeck(
+    team: TeamState,
+    deck: Card[],
+    dropped = 1,
+  ): RoundState {
+    const base = stateWith([team]);
+    return {
+      ...base,
+      phase: 'revival',
+      droppedLifeTokens: {
+        fire: { fire: 0, water: dropped, wood: 0 },
+        water: { fire: 0, water: 0, wood: 0 },
+        wood: { fire: 0, water: 0, wood: 0 },
+      },
+      deck,
+    };
+  }
+
+  it('revive-member draws 1 bonus card from deck into hand', () => {
+    const team: TeamState = {
+      teamNumber: 1 as NumberToken,
+      position: fireWater,
+      facing: 'north',
+      cards: [wood1],
+      players: [{ life: 0 as LifeToken }, { life: 3 as LifeToken }],
+    };
+    const s = stateWithDeck(team, [fire5, water3]);
+    const next = advanceRevival(
+      s,
+      new Map([[1 as NumberToken, { type: 'revive-member' }]]),
+    );
+    const t = next.grid.fire.water.find((tm) => tm.teamNumber === 1);
+    expect(t?.players[0]?.life).toBe(1); // revived
+    expect(t?.cards).toEqual([wood1, fire5]); // bonus draw appended
+    expect(next.deck).toEqual([water3]); // 1 popped
+  });
+
+  it('charge-cards draws 3 cards from deck into hand', () => {
+    const team: TeamState = {
+      teamNumber: 1 as NumberToken,
+      position: fireWater,
+      facing: 'north',
+      cards: [wood1],
+      players: [{ life: 2 as LifeToken }],
+    };
+    const s = stateWithDeck(team, [fire5, water3, wood1, fire5]);
+    const next = advanceRevival(
+      s,
+      new Map([[1 as NumberToken, { type: 'charge-cards' }]]),
+    );
+    const t = next.grid.fire.water.find((tm) => tm.teamNumber === 1);
+    expect(t?.cards).toEqual([wood1, fire5, water3, wood1]);
+    expect(next.deck).toEqual([fire5]); // 3 popped
+  });
+
+  it('charge-life does NOT touch deck', () => {
+    const team: TeamState = {
+      teamNumber: 1 as NumberToken,
+      position: fireWater,
+      facing: 'north',
+      cards: [],
+      players: [{ life: 2 as LifeToken }],
+    };
+    const s = stateWithDeck(team, [fire5, water3]);
+    const next = advanceRevival(
+      s,
+      new Map([[1 as NumberToken, { type: 'charge-life' }]]),
+    );
+    expect(next.deck).toEqual([fire5, water3]); // unchanged
+  });
+
+  it('empty deck on revive-member: revive happens, hand unchanged', () => {
+    const team: TeamState = {
+      teamNumber: 1 as NumberToken,
+      position: fireWater,
+      facing: 'north',
+      cards: [wood1],
+      players: [{ life: 0 as LifeToken }, { life: 3 as LifeToken }],
+    };
+    const s = stateWithDeck(team, []);
+    const next = advanceRevival(
+      s,
+      new Map([[1 as NumberToken, { type: 'revive-member' }]]),
+    );
+    const t = next.grid.fire.water.find((tm) => tm.teamNumber === 1);
+    expect(t?.players[0]?.life).toBe(1); // revived
+    expect(t?.cards).toEqual([wood1]); // no bonus draw
+  });
+
+  it('partial draw on charge-cards when deck has fewer than 3 cards', () => {
+    const team: TeamState = {
+      teamNumber: 1 as NumberToken,
+      position: fireWater,
+      facing: 'north',
+      cards: [],
+      players: [{ life: 2 as LifeToken }],
+    };
+    const s = stateWithDeck(team, [fire5, water3]);
+    const next = advanceRevival(
+      s,
+      new Map([[1 as NumberToken, { type: 'charge-cards' }]]),
+    );
+    const t = next.grid.fire.water.find((tm) => tm.teamNumber === 1);
+    expect(t?.cards).toEqual([fire5, water3]); // 2 drawn
+    expect(next.deck).toEqual([]);
   });
 });
