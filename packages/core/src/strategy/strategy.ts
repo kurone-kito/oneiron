@@ -1,7 +1,7 @@
 import type { BattlePlay } from '../logic/battle.ts';
 import type { RevivalAction, RoundState } from '../logic/round.ts';
 import type { MovementChoice } from '../logic/runner.ts';
-import type { TeamState } from '../types/grid.ts';
+import { ELEMENT_AXIS, type TeamState } from '../types/grid.ts';
 import type { TeamId } from '../types/token.ts';
 
 type ExplicitStrategyMovementChoice = Omit<
@@ -38,9 +38,9 @@ export type TeamStrategy = {
 
 function allTeams(state: RoundState): TeamState[] {
   const teams: TeamState[] = [];
-  for (const row of Object.values(state.grid)) {
-    for (const cell of Object.values(row)) {
-      teams.push(...cell);
+  for (const x of ELEMENT_AXIS) {
+    for (const y of ELEMENT_AXIS) {
+      teams.push(...state.grid[x][y]);
     }
   }
   return teams;

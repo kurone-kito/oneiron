@@ -12,7 +12,7 @@ import type { InputProvider, MovementChoice } from '../logic/runner.ts';
 import { runUntilGameOver } from '../logic/runner.ts';
 import { setupGame } from '../logic/setup.ts';
 import type { Card, ElementCard, JokerCard } from '../types/card.ts';
-import type { GridCoord, TeamState } from '../types/grid.ts';
+import { ELEMENT_AXIS, type GridCoord, type TeamState } from '../types/grid.ts';
 import { createLifeToken, type NumberToken } from '../types/token.ts';
 import { randomStrategy } from './random.ts';
 
@@ -70,9 +70,13 @@ function stateWith(
 }
 
 function allTeams(state: RoundState): TeamState[] {
-  return Object.values(state.grid).flatMap((row) =>
-    Object.values(row).flatMap((cell) => [...cell]),
-  );
+  const teams: TeamState[] = [];
+  for (const x of ELEMENT_AXIS) {
+    for (const y of ELEMENT_AXIS) {
+      teams.push(...state.grid[x][y]);
+    }
+  }
+  return teams;
 }
 
 function makeBotProvider(
