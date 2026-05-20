@@ -6,9 +6,9 @@ import { ELEMENT_AXIS } from '../types/grid.ts';
 import type { NumberToken, TeamId } from '../types/token.ts';
 import { createLifeToken } from '../types/token.ts';
 import type { BattlePlay } from './battle.ts';
-import type { RevivalAction, RoundState, TeamMove } from './round.ts';
+import type { RevivalAction, RoundState } from './round.ts';
 import { createEmptyGrid, isGameOver } from './round.ts';
-import type { InputProvider, RoundInputs } from './runner.ts';
+import type { InputProvider, MovementChoice, RoundInputs } from './runner.ts';
 import { runRound, runUntilGameOver } from './runner.ts';
 import { setupGame } from './setup.ts';
 
@@ -93,7 +93,7 @@ describe('runRound', () => {
   function makeInputs(
     opts: {
       plays?: readonly BattlePlay[];
-      teamMoves?: readonly TeamMove[];
+      teamMoves?: readonly MovementChoice[];
       revivalChoices?: ReadonlyMap<TeamId, RevivalAction>;
     } = {},
   ): RoundInputs {
@@ -237,6 +237,360 @@ describe('runRound', () => {
     expect(movementLogs.length).toBeGreaterThanOrEqual(1);
     expect(movementLogs.some((l) => l.message.includes('exhausted'))).toBe(
       true,
+    );
+  });
+
+  it('draws 2 cards for an empty-hand team, uses 1 for movement, and keeps 1', () => {
+    const teamA = makeTeam({
+      id: 1 as NumberToken,
+      position: fireWater,
+      life: 4,
+      gridCards: [wood4, wood1],
+      cards: [],
+    });
+    const teamB = makeTeam({
+      id: 2 as NumberToken,
+      position: waterWater,
+      life: 4,
+      gridCards: [fire5, water3],
+      cards: [fire5],
+    });
+    const s = stateWith([teamA, teamB], [wood1, wood1, fire5, water3, fire5]);
+    const out = runRound(
+      s,
+      makeInputs({
+        teamMoves: [
+          {
+            kind: 'emergency-draw',
+            teamId: 1 as NumberToken,
+            intendedFacing: 'east',
+          },
+        ],
+      }),
+    );
+
+    const movedTeam = out.state.grid.fire.water.find((t) => t.teamNumber === 1);
+    expect(movedTeam?.facing).toBe('east');
+    expect(movedTeam?.cards).toEqual([fire5]);
+    expect(movedTeam?.gridCards).toEqual([water3, wood1]);
+    expect(out.state.graveyard).toContainEqual(wood4);
+    expect(out.state.deck).toEqual([]);
+    expect(
+      out.log.some((entry) =>
+        entry.message.includes(
+          'drew 2 card(s) for the empty-hand movement fallback',
+        ),
+      ),
+    ).toBe(true);
+    const movementAttributeIndex = out.log.findIndex(
+      (entry) => entry.message === 'Movement attribute: fire',
+    );
+    const emergencyDrawIndex = out.log.findIndex((entry) =>
+      entry.message.includes(
+        'drew 2 card(s) for the empty-hand movement fallback',
+      ),
+    );
+    expect(movementAttributeIndex).toBeGreaterThanOrEqual(0);
+    expect(emergencyDrawIndex).toBeGreaterThan(movementAttributeIndex);
+  });
+
+  it('lets the caller pick which emergency-drawn card is used for movement', () => {
+    const teamA = makeTeam({
+      id: 1 as NumberToken,
+      position: fireWater,
+      life: 4,
+      gridCards: [fire5, wood1],
+      cards: [],
+    });
+    const teamB = makeTeam({
+      id: 2 as NumberToken,
+      position: waterWater,
+      life: 4,
+      gridCards: [wood4, water3],
+      cards: [fire5],
+    });
+    const s = stateWith([teamA, teamB], [wood1, wood1, water3, fire5, wood4]);
+    const out = runRound(
+      s,
+      makeInputs({
+        teamMoves: [
+          {
+            kind: 'emergency-draw',
+            teamId: 1 as NumberToken,
+            intendedFacing: 'east',
+            emergencyDrawPick: 1,
+            gridSwapIndex: 1,
+          },
+        ],
+      }),
+    );
+
+    const movedTeam = out.state.grid.fire.water.find((t) => t.teamNumber === 1);
+    expect(movedTeam?.facing).toBe('east');
+    expect(movedTeam?.cards).toEqual([fire5]);
+    expect(movedTeam?.gridCards).toEqual([fire5, wood4]);
+    expect(out.state.graveyard).toContainEqual(wood1);
+    expect(out.state.deck).toEqual([]);
+  });
+
+  it('draws for simultaneous empty-hand teams in ascending team-number order', () => {
+    const teamA = makeTeam({
+      id: 1 as NumberToken,
+      position: fireWater,
+      life: 4,
+      gridCards: [wood4, wood1],
+      cards: [],
+    });
+    const teamB = makeTeam({
+      id: 2 as NumberToken,
+      position: waterWater,
+      life: 4,
+      gridCards: [fire5, wood1],
+      cards: [],
+    });
+    const s = stateWith(
+      [teamA, teamB],
+      [wood1, wood1, fire5, water3, fire5, wood4],
+    );
+    const out = runRound(
+      s,
+      makeInputs({
+        teamMoves: [
+          {
+            kind: 'emergency-draw',
+            teamId: 1 as NumberToken,
+            intendedFacing: 'east',
+          },
+          {
+            kind: 'emergency-draw',
+            teamId: 2 as NumberToken,
+            intendedFacing: 'south',
+            gridSwapIndex: 1,
+          },
+        ],
+      }),
+    );
+
+    const movedTeamA = out.state.grid.fire.water.find(
+      (t) => t.teamNumber === 1,
+    );
+    const movedTeamB = out.state.grid.water.water.find(
+      (t) => t.teamNumber === 2,
+    );
+    expect(movedTeamA?.cards).toEqual([fire5]);
+    expect(movedTeamA?.gridCards).toEqual([water3, wood1]);
+    expect(movedTeamB?.cards).toEqual([]);
+    expect(movedTeamB?.gridCards).toEqual([fire5, wood4]);
+    expect(out.state.graveyard).toContainEqual(wood4);
+    expect(out.state.graveyard).toContainEqual(wood1);
+    expect(out.state.deck).toEqual([]);
+    expect(
+      out.log.some((entry) =>
+        entry.message.includes(
+          'Team 1 drew 2 card(s) for the empty-hand movement fallback',
+        ),
+      ),
+    ).toBe(true);
+    expect(
+      out.log.some((entry) =>
+        entry.message.includes(
+          'Team 2 drew 1 card(s) for the empty-hand movement fallback',
+        ),
+      ),
+    ).toBe(true);
+  });
+
+  it('uses the only remaining deck card for empty-hand movement fallback', () => {
+    const teamA = makeTeam({
+      id: 1 as NumberToken,
+      position: fireWater,
+      life: 4,
+      gridCards: [wood4, wood1],
+      cards: [],
+    });
+    const teamB = makeTeam({
+      id: 2 as NumberToken,
+      position: waterWater,
+      life: 4,
+      gridCards: [fire5, water3],
+      cards: [fire5],
+    });
+    const s = stateWith([teamA, teamB], [wood1, wood1, fire5, water3]);
+    const out = runRound(
+      s,
+      makeInputs({
+        teamMoves: [
+          {
+            kind: 'emergency-draw',
+            teamId: 1 as NumberToken,
+            intendedFacing: 'east',
+          },
+        ],
+      }),
+    );
+
+    const movedTeam = out.state.grid.fire.water.find((t) => t.teamNumber === 1);
+    expect(movedTeam?.cards).toEqual([]);
+    expect(movedTeam?.gridCards).toEqual([water3, wood1]);
+    expect(out.state.deck).toEqual([]);
+    expect(
+      out.log.some((entry) =>
+        entry.message.includes(
+          'drew 1 card(s) for the empty-hand movement fallback',
+        ),
+      ),
+    ).toBe(true);
+  });
+
+  it('keeps the round moving when empty-hand fallback cannot draw any cards', () => {
+    const teamA = makeTeam({
+      id: 1 as NumberToken,
+      position: fireWater,
+      life: 4,
+      gridCards: [wood4, wood1],
+      cards: [],
+    });
+    const teamB = makeTeam({
+      id: 2 as NumberToken,
+      position: waterWater,
+      life: 4,
+      gridCards: [fire5, water3],
+      cards: [fire5],
+    });
+    const s = stateWith([teamA, teamB], [wood1, wood1, fire5]);
+    const out = runRound(
+      s,
+      makeInputs({
+        teamMoves: [
+          {
+            kind: 'emergency-draw',
+            teamId: 1 as NumberToken,
+            intendedFacing: 'east',
+          },
+        ],
+      }),
+    );
+
+    const unchangedTeam = out.state.grid.fire.water.find(
+      (t) => t.teamNumber === 1,
+    );
+    expect(unchangedTeam?.facing).toBe('north');
+    expect(unchangedTeam?.cards).toEqual([]);
+    expect(unchangedTeam?.gridCards).toEqual([wood4, wood1]);
+    expect(out.state.deck).toEqual([]);
+    expect(
+      out.log.some((entry) =>
+        entry.message.includes(
+          'had no cards in hand and the deck was exhausted',
+        ),
+      ),
+    ).toBe(true);
+  });
+
+  it('draws fallback cards but skips movement without an emergency-draw submission', () => {
+    const teamA = makeTeam({
+      id: 1 as NumberToken,
+      position: fireWater,
+      life: 4,
+      gridCards: [wood4, wood1],
+      cards: [],
+    });
+    const teamB = makeTeam({
+      id: 2 as NumberToken,
+      position: waterWater,
+      life: 4,
+      gridCards: [fire5, water3],
+      cards: [fire5],
+    });
+    const s = stateWith([teamA, teamB], [wood1, wood1, fire5, water3, fire5]);
+    const out = runRound(s, makeInputs());
+
+    const fallbackTeam = out.state.grid.fire.water.find(
+      (t) => t.teamNumber === 1,
+    );
+    expect(fallbackTeam?.facing).toBe('north');
+    expect(fallbackTeam?.cards).toEqual([water3, fire5]);
+    expect(fallbackTeam?.gridCards).toEqual([wood4, wood1]);
+    expect(out.state.deck).toEqual([]);
+    expect(
+      out.log.some((entry) =>
+        entry.message.includes(
+          'had no movement submission after the empty-hand movement fallback draw',
+        ),
+      ),
+    ).toBe(true);
+  });
+
+  it('uses the first remaining hand card when an emergency-draw choice survives battle with cards left', () => {
+    const teamA = makeTeam({
+      id: 1 as NumberToken,
+      position: fireWater,
+      life: 4,
+      gridCards: [wood4, wood1],
+      cards: [water3, fire5],
+    });
+    const teamB = makeTeam({
+      id: 2 as NumberToken,
+      position: waterWater,
+      life: 4,
+      gridCards: [fire5, wood1],
+      cards: [fire5],
+    });
+    const s = stateWith([teamA, teamB], [wood1, wood1, fire5]);
+    const out = runRound(
+      s,
+      makeInputs({
+        teamMoves: [
+          {
+            kind: 'emergency-draw',
+            teamId: 1 as NumberToken,
+            intendedFacing: 'east',
+          },
+        ],
+      }),
+    );
+
+    const movedTeam = out.state.grid.fire.water.find((t) => t.teamNumber === 1);
+    expect(movedTeam?.facing).toBe('east');
+    expect(movedTeam?.cards).toEqual([fire5]);
+    expect(out.state.deck).toEqual([]);
+  });
+
+  it('rejects explicit movement choices for empty-hand teams', () => {
+    const teamA = makeTeam({
+      id: 1 as NumberToken,
+      position: fireWater,
+      life: 4,
+      gridCards: [wood4, wood1],
+      cards: [],
+    });
+    const teamB = makeTeam({
+      id: 2 as NumberToken,
+      position: waterWater,
+      life: 4,
+      gridCards: [fire5, water3],
+      cards: [fire5],
+    });
+    const s = stateWith([teamA, teamB], [wood1, wood1, fire5, water3, fire5]);
+
+    expect(() =>
+      runRound(
+        s,
+        makeInputs({
+          teamMoves: [
+            {
+              kind: 'explicit',
+              teamId: 1 as NumberToken,
+              card: fire5,
+              intendedFacing: 'east',
+            },
+          ],
+        }),
+      ),
+    ).toThrowError(
+      new RangeError(
+        'Team 1 cannot use an explicit movement choice with an empty hand.',
+      ),
     );
   });
 

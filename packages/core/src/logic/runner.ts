@@ -1,5 +1,7 @@
 import type { Card, Deck, ElementCard } from '../types/card.ts';
 import { isElementCard } from '../types/card.ts';
+import type { Facing, TeamState } from '../types/grid.ts';
+import { ELEMENT_AXIS } from '../types/grid.ts';
 import type { LogEntry } from '../types/log.ts';
 import type { TeamId } from '../types/token.ts';
 import type { BattlePlay } from './battle.ts';
@@ -18,6 +20,34 @@ import {
   winner,
 } from './round.ts';
 
+type ExplicitMovementChoice = {
+  readonly kind: 'explicit';
+  readonly teamId: TeamId;
+  readonly intendedFacing: Facing;
+  readonly gridSwapIndex?: 0 | 1;
+  /** Explicit card choice for a team that already has cards in hand. */
+  readonly card: Card;
+};
+
+type EmergencyDrawMovementChoice = {
+  readonly kind: 'emergency-draw';
+  readonly teamId: TeamId;
+  readonly intendedFacing: Facing;
+  readonly gridSwapIndex?: 0 | 1;
+  /**
+   * Optional emergency-draw pick for a hand-empty team. `0` chooses
+   * the first drawn card, `1` the second. When omitted or unavailable,
+   * the runner falls back to the first drawn card. If battle-side
+   * card flow leaves cards in hand after input collection, the runner
+   * instead consumes the first remaining hand card heuristically.
+   */
+  readonly emergencyDrawPick?: 0 | 1;
+};
+
+export type MovementChoice =
+  | ExplicitMovementChoice
+  | EmergencyDrawMovementChoice;
+
 /**
  * Inputs for a single round, one bundle per phase.
  *
@@ -31,7 +61,7 @@ export type RoundInputs = {
     readonly plays: readonly BattlePlay[];
   };
   readonly movement: {
-    readonly teamMoves: readonly TeamMove[];
+    readonly teamMoves: readonly MovementChoice[];
   };
   readonly revival: {
     readonly choices: ReadonlyMap<TeamId, RevivalAction>;
@@ -82,6 +112,155 @@ const JOKER_FORBIDDEN_FALLBACK: ElementCard = {
 
 function coerceToElementCard(card: Card): ElementCard {
   return isElementCard(card) ? card : JOKER_FORBIDDEN_FALLBACK;
+}
+
+function allTeams(state: RoundState): TeamState[] {
+  const teams: TeamState[] = [];
+  for (const x of ELEMENT_AXIS) {
+    for (const y of ELEMENT_AXIS) {
+      teams.push(...state.grid[x][y]);
+    }
+  }
+  return teams;
+}
+
+function findTeam(state: RoundState, teamId: TeamId): TeamState | undefined {
+  return allTeams(state).find((team) => team.teamNumber === teamId);
+}
+
+function isTeamAlive(team: TeamState): boolean {
+  return team.players.some((player) => player.life > 0);
+}
+
+function updateTeam(state: RoundState, updated: TeamState): RoundState {
+  const { x, y } = updated.position;
+  return {
+    ...state,
+    grid: {
+      ...state.grid,
+      [x]: {
+        ...state.grid[x],
+        [y]: state.grid[x][y].map((team) =>
+          team.teamNumber === updated.teamNumber ? updated : team,
+        ),
+      },
+    },
+  } as RoundState;
+}
+
+function resolveMovementChoices(
+  state: RoundState,
+  movementChoices: readonly MovementChoice[],
+  round: number,
+  log: LogEntry[],
+): { state: RoundState; teamMoves: readonly TeamMove[] } {
+  let next = state;
+  const resolvedMoves: TeamMove[] = [];
+  const choicesByTeam = new Map<TeamId, MovementChoice>();
+  for (const choice of movementChoices) {
+    choicesByTeam.set(choice.teamId, choice);
+  }
+
+  const candidateIds = new Set<TeamId>(choicesByTeam.keys());
+  for (const team of allTeams(next)) {
+    if (!isTeamAlive(team)) continue;
+    if (team.cards.length === 0) {
+      candidateIds.add(team.teamNumber);
+    }
+  }
+
+  // Process every movement candidate in one team-number order so
+  // explicit submissions and emergency draws both stay deterministic
+  // regardless of submission order. This remains safe because
+  // movement later resolves each team's state independently.
+  const orderedTeamIds = [...candidateIds].sort((a, b) => a - b);
+  for (const teamId of orderedTeamIds) {
+    const team = findTeam(next, teamId);
+    if (team === undefined || !isTeamAlive(team)) continue;
+
+    const choice = choicesByTeam.get(teamId);
+    if (team.cards.length === 0) {
+      if (choice?.kind === 'explicit') {
+        throw new RangeError(
+          `Team ${teamId} cannot use an explicit movement choice with an empty hand.`,
+        );
+      }
+
+      const emergencyDraw = drawFromDeck(next.deck, 2);
+      next = { ...next, deck: emergencyDraw.remaining };
+      const [firstDrawnCard, secondDrawnCard] = emergencyDraw.drawn;
+      if (firstDrawnCard === undefined) {
+        log.push({
+          round,
+          phase: 'movement',
+          message: `Team ${teamId} had no cards in hand and the deck was exhausted`,
+        });
+        continue;
+      }
+
+      const replenishedTeam: TeamState = {
+        ...team,
+        cards: [...team.cards, ...emergencyDraw.drawn],
+      };
+      next = updateTeam(next, replenishedTeam);
+      log.push({
+        round,
+        phase: 'movement',
+        message: `Team ${teamId} drew ${emergencyDraw.drawn.length} card(s) for the empty-hand movement fallback`,
+      });
+      if (choice?.kind !== 'emergency-draw') {
+        log.push({
+          round,
+          phase: 'movement',
+          message: `Team ${teamId} had no movement submission after the empty-hand movement fallback draw`,
+        });
+        continue;
+      }
+
+      const selectedDrawIndex = choice.emergencyDrawPick ?? 0;
+      const selectedCard =
+        selectedDrawIndex === 1
+          ? (secondDrawnCard ?? firstDrawnCard)
+          : firstDrawnCard;
+
+      resolvedMoves.push({
+        teamId,
+        card: selectedCard,
+        intendedFacing: choice.intendedFacing,
+        ...(choice.gridSwapIndex !== undefined
+          ? { gridSwapIndex: choice.gridSwapIndex }
+          : {}),
+      });
+      continue;
+    }
+
+    if (choice === undefined) continue;
+    if (choice.kind === 'emergency-draw') {
+      const [firstHandCard] = team.cards;
+      if (firstHandCard === undefined) continue;
+
+      resolvedMoves.push({
+        teamId,
+        card: firstHandCard,
+        intendedFacing: choice.intendedFacing,
+        ...(choice.gridSwapIndex !== undefined
+          ? { gridSwapIndex: choice.gridSwapIndex }
+          : {}),
+      });
+      continue;
+    }
+
+    resolvedMoves.push({
+      teamId,
+      card: choice.card,
+      intendedFacing: choice.intendedFacing,
+      ...(choice.gridSwapIndex !== undefined
+        ? { gridSwapIndex: choice.gridSwapIndex }
+        : {}),
+    });
+  }
+
+  return { state: next, teamMoves: resolvedMoves };
 }
 
 /**
@@ -154,16 +333,31 @@ export function runRound(state: RoundState, inputs: RoundInputs): RoundOutput {
   } else {
     const drawn = moveDraw.drawn[0] as Card;
     const attrCard = coerceToElementCard(drawn);
-    const beforeMovement: RoundState = { ...next, deck: moveDraw.remaining };
+    log.push({
+      round,
+      phase: 'movement',
+      message: `Movement attribute: ${attrCard.element}`,
+    });
+    const movementInputState: RoundState = {
+      ...next,
+      deck: moveDraw.remaining,
+    };
+    const resolvedMovement = resolveMovementChoices(
+      movementInputState,
+      inputs.movement.teamMoves,
+      round,
+      log,
+    );
+    const beforeMovement = resolvedMovement.state;
     next = advanceMovement(
       beforeMovement,
       attrCard.element,
-      inputs.movement.teamMoves,
+      resolvedMovement.teamMoves,
     );
     log.push({
       round,
       phase: 'movement',
-      message: `Movement attribute: ${attrCard.element} (${inputs.movement.teamMoves.length} moves submitted)`,
+      message: `Movement resolution: ${resolvedMovement.teamMoves.length} moves resolved`,
     });
     const movementPenalties = countTokenDelta(beforeMovement, next);
     if (movementPenalties > 0) {
