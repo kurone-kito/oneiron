@@ -1,3 +1,5 @@
+import type { GameConfig } from '../config.ts';
+import { DEFAULT_CONFIG } from '../config.ts';
 import type { Card, Deck } from '../types/card.ts';
 import type { Grid, GridCoord, PlayerState, TeamState } from '../types/grid.ts';
 import { ELEMENT_AXIS, isAdjacent, isSameCoord } from '../types/grid.ts';
@@ -251,27 +253,64 @@ function consumeFromHand(
 }
 
 /**
+ * Compute the loser's total remaining life before damage was applied.
+ */
+function totalLife(team: TeamState): number {
+  return team.players.reduce((sum, p) => sum + p.life, 0);
+}
+
+/**
+ * Per rules.ja.md §Battle 9: when a player is eliminated, the
+ * winner takes one card from the loser's hand; the rest go to the
+ * graveyard. When damage exceeds remaining life (overflow), the
+ * winner additionally takes `E × overflow` cards (E from
+ * `config.damageOverflowFactor`). v1 simplification: applies at the
+ * TEAM level (one forfeit per encounter) because the engine models
+ * encounters team-vs-team rather than per-player.
+ *
+ * The first `count` cards in `loser.cards` go to `winner.cards`;
+ * any remaining loser cards go to the graveyard. Returns the
+ * updated winner and the cards routed to graveyard.
+ */
+function applyForfeit(
+  loser: TeamState,
+  winner: TeamState,
+  count: number,
+): { winner: TeamState; toGraveyard: readonly Card[] } {
+  const safeCount = Math.max(0, Math.min(count, loser.cards.length));
+  const taken = loser.cards.slice(0, safeCount);
+  const remaining = loser.cards.slice(safeCount);
+  return {
+    winner: { ...winner, cards: [...winner.cards, ...taken] },
+    toGraveyard: remaining,
+  };
+}
+
+/**
  * Resolves the battle phase end-to-end:
  * - Validates that every non-null play references a card the team
  *   actually holds in hand (throws RangeError otherwise).
  * - Compute encounter order via {@link orderEncounters}.
  * - For each encounter, removes the played cards from the
  *   participating teams' hands and appends them to
- *   `state.graveyard` BEFORE damage resolution (so the
- *   pre-damage hand snapshot only contains remaining cards). For
- *   eliminated teams the played card still lands in the
+ *   `state.graveyard` BEFORE damage resolution.
+ * - Then determines the winner via `resolveCards`, computes damage
+ *   via `calcDamage` (joker/absence → fixed 1), applies damage to
+ *   the loser, drops tokens at the loser's coordinate.
+ * - When the damage eliminates the loser, the **winner team seizes
+ *   `1 + E × overflow` cards** from the loser's remaining hand
+ *   (E from `config.damageOverflowFactor`, overflow = `damage -
+ *   life-before-damage`). Any loser cards not seized go to the
  *   graveyard.
- * - Then determines the winner via `resolveCards`, computes
- *   damage via `calcDamage` (joker/absence → fixed 1), applies
- *   damage to the loser, drops tokens at the loser's
- *   coordinate, and removes the team from the grid when all
- *   players are eliminated.
+ * - Eliminated teams are removed from the grid; surviving losers
+ *   keep their remaining hand.
  * - Returns the updated state (refreshed `droppedLifeTokens` and
  *   `graveyard`) and the full enriched `BattleResult[]`.
  */
 export function resolveBattlePhase(
   state: RoundState,
   plays: readonly BattlePlay[],
+  config: GameConfig = DEFAULT_CONFIG,
 ): { readonly state: RoundState; readonly results: readonly BattleResult[] } {
   validatePlays(state.grid, plays);
 
@@ -303,8 +342,7 @@ export function resolveBattlePhase(
 
     // Consume played cards from each team's hand BEFORE damage
     // resolution. Both teams retain the rest of their hand for
-    // potential post-encounter operations (e.g. forfeit on
-    // elimination — #110).
+    // potential post-encounter operations (forfeit on elimination).
     if (cardA !== null) {
       const cons = consumeFromHand(teamA, cardA);
       teamA = cons.team;
@@ -349,7 +387,9 @@ export function resolveBattlePhase(
 
     if (winnerId === null || damage <= 0) continue;
 
+    const winnerTeam = winnerId === enc.teamA ? teamA : teamB;
     const loser = winnerId === enc.teamA ? teamB : teamA;
+    const lifeBeforeDamage = totalLife(loser);
     const { team: damagedLoser, tokensDropped } = applyDamage(loser, damage);
 
     droppedLifeTokens = addDroppedTokens(
@@ -358,9 +398,21 @@ export function resolveBattlePhase(
       tokensDropped,
     );
 
-    grid = isTeamDead(damagedLoser)
-      ? removeTeamFromGrid(grid, damagedLoser)
-      : updateTeamInGrid(grid, damagedLoser);
+    if (isTeamDead(damagedLoser)) {
+      // Elimination forfeit: winner takes 1 base card + E × overflow.
+      const overflow = Math.max(0, damage - lifeBeforeDamage);
+      const forfeitCount = 1 + config.damageOverflowFactor * overflow;
+      const { winner: enrichedWinner, toGraveyard } = applyForfeit(
+        damagedLoser,
+        winnerTeam,
+        forfeitCount,
+      );
+      graveyard = [...graveyard, ...toGraveyard];
+      grid = updateTeamInGrid(grid, enrichedWinner);
+      grid = removeTeamFromGrid(grid, damagedLoser);
+    } else {
+      grid = updateTeamInGrid(grid, damagedLoser);
+    }
   }
 
   return {
