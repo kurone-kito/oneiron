@@ -178,6 +178,12 @@ function resolveMovementChoices(
 
     const choice = choicesByTeam.get(teamId);
     if (team.cards.length === 0) {
+      if (choice?.kind === 'explicit') {
+        throw new RangeError(
+          `Team ${teamId} cannot use an explicit movement choice with an empty hand.`,
+        );
+      }
+
       const emergencyDraw = drawFromDeck(next.deck, 2);
       next = { ...next, deck: emergencyDraw.remaining };
       if (emergencyDraw.drawn.length === 0) {
