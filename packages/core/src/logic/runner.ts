@@ -186,7 +186,8 @@ function resolveMovementChoices(
 
       const emergencyDraw = drawFromDeck(next.deck, 2);
       next = { ...next, deck: emergencyDraw.remaining };
-      if (emergencyDraw.drawn.length === 0) {
+      const [firstDrawnCard, secondDrawnCard] = emergencyDraw.drawn;
+      if (firstDrawnCard === undefined) {
         log.push({
           round,
           phase: 'movement',
@@ -203,11 +204,13 @@ function resolveMovementChoices(
       const selectedDrawIndex =
         choice?.kind === 'emergency-draw' ? (choice.emergencyDrawPick ?? 0) : 0;
       const selectedCard =
-        emergencyDraw.drawn[selectedDrawIndex] ?? emergencyDraw.drawn[0];
+        selectedDrawIndex === 1
+          ? (secondDrawnCard ?? firstDrawnCard)
+          : firstDrawnCard;
 
       resolvedMoves.push({
         teamId,
-        card: selectedCard as Card,
+        card: selectedCard,
         intendedFacing: choice?.intendedFacing ?? team.facing,
         ...(choice?.gridSwapIndex !== undefined
           ? { gridSwapIndex: choice.gridSwapIndex }
