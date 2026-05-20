@@ -2,10 +2,14 @@ import { DEFAULT_CONFIG, type GameConfig } from '../config.ts';
 import type { BattlePlay } from '../logic/battle.ts';
 import { resolveBattlePhase } from '../logic/battle.ts';
 import {
+  allTeams,
   coerceToElementCard,
   drawFromDeck,
+  findTeam,
+  isTeamAlive,
   type MovementChoice,
   resolveMovementChoices,
+  updateTeam,
 } from '../logic/phase-helpers.ts';
 import {
   advanceForbidden,
@@ -16,13 +20,9 @@ import {
   type RoundState,
   type TeamMove,
 } from '../logic/round.ts';
-import {
-  findTeam,
-  isTeamAlive,
-  type TeamStrategy,
-} from '../strategy/strategy.ts';
+import type { TeamStrategy } from '../strategy/strategy.ts';
 import type { Card, Element } from '../types/card.ts';
-import { ELEMENT_AXIS, type TeamState } from '../types/grid.ts';
+import type { TeamState } from '../types/grid.ts';
 import type { TeamId } from '../types/token.ts';
 
 export type TeamControl =
@@ -58,32 +58,6 @@ export type SessionStep =
   | { readonly status: 'done'; readonly state: RoundState };
 
 const DEFAULT_HUMAN_CONTROL: TeamControl = { type: 'human' };
-
-function allTeams(state: RoundState): TeamState[] {
-  const teams: TeamState[] = [];
-  for (const x of ELEMENT_AXIS) {
-    for (const y of ELEMENT_AXIS) {
-      teams.push(...state.grid[x][y]);
-    }
-  }
-  return teams;
-}
-
-function updateTeam(state: RoundState, updated: TeamState): RoundState {
-  const { x, y } = updated.position;
-  return {
-    ...state,
-    grid: {
-      ...state.grid,
-      [x]: {
-        ...state.grid[x],
-        [y]: state.grid[x][y].map((team) =>
-          team.teamNumber === updated.teamNumber ? updated : team,
-        ),
-      },
-    },
-  } as RoundState;
-}
 
 function controlFor(
   controls: ReadonlyMap<TeamId, TeamControl>,

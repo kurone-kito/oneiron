@@ -39,7 +39,7 @@ const JOKER_FORBIDDEN_FALLBACK: ElementCard = {
   value: 1,
 };
 
-function allTeams(state: RoundState): TeamState[] {
+export function allTeams(state: RoundState): TeamState[] {
   const teams: TeamState[] = [];
   for (const x of ELEMENT_AXIS) {
     for (const y of ELEMENT_AXIS) {
@@ -49,15 +49,18 @@ function allTeams(state: RoundState): TeamState[] {
   return teams;
 }
 
-function findTeam(state: RoundState, teamId: TeamId): TeamState | undefined {
+export function findTeam(
+  state: RoundState,
+  teamId: TeamId,
+): TeamState | undefined {
   return allTeams(state).find((team) => team.teamNumber === teamId);
 }
 
-function isTeamAlive(team: TeamState): boolean {
+export function isTeamAlive(team: TeamState): boolean {
   return team.players.some((player) => player.life > 0);
 }
 
-function updateTeam(state: RoundState, updated: TeamState): RoundState {
+export function updateTeam(state: RoundState, updated: TeamState): RoundState {
   const { x, y } = updated.position;
   return {
     ...state,
