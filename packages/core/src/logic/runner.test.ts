@@ -12,10 +12,11 @@ import type { InputProvider, RoundInputs } from './runner.ts';
 import { runRound, runUntilGameOver } from './runner.ts';
 import { setupGame } from './setup.ts';
 
+const fire1: ElementCard = { kind: 'element', element: 'fire', value: 1 };
 const fire5: ElementCard = { kind: 'element', element: 'fire', value: 5 };
 const water3: ElementCard = { kind: 'element', element: 'water', value: 3 };
-const wood4: ElementCard = { kind: 'element', element: 'wood', value: 4 };
 const wood1: ElementCard = { kind: 'element', element: 'wood', value: 1 };
+const wood4: ElementCard = { kind: 'element', element: 'wood', value: 4 };
 const joker: JokerCard = { kind: 'joker' };
 
 function allTeams(state: RoundState): TeamState[] {
@@ -28,7 +29,10 @@ function allTeams(state: RoundState): TeamState[] {
   return teams;
 }
 
-function stateWith(teams: readonly TeamState[]): RoundState {
+function stateWith(
+  teams: readonly TeamState[],
+  deck: readonly Card[] = [],
+): RoundState {
   let grid = createEmptyGrid();
   for (const team of teams) {
     const { x, y } = team.position;
@@ -37,7 +41,14 @@ function stateWith(teams: readonly TeamState[]): RoundState {
       [x]: { ...grid[x], [y]: [...grid[x][y], team] },
     } as typeof grid;
   }
-  return { phase: 'battle', round: 1, grid, forbiddenCells: [] };
+  return {
+    phase: 'battle',
+    round: 1,
+    grid,
+    forbiddenCells: [],
+    deck: [...deck],
+    graveyard: [],
+  };
 }
 
 const fireWater: GridCoord = { x: 'fire', y: 'water' };
@@ -66,23 +77,28 @@ function makeTeam(opts: {
   };
 }
 
+/** Builds a deck with three (forbidden-x, forbidden-y, movement-attr) triples. */
+function deckOfTriples(
+  triples: readonly (readonly [Card, Card, Card])[],
+): Card[] {
+  const out: Card[] = [];
+  for (const t of triples) {
+    out.push(t[0], t[1], t[2]);
+  }
+  return out;
+}
+
 describe('runRound', () => {
   function makeInputs(
     opts: {
       plays?: readonly BattlePlay[];
-      forbidden?: readonly [ElementCard, ElementCard];
-      movementAttribute?: 'fire' | 'water' | 'wood';
       teamMoves?: readonly TeamMove[];
       revivalChoices?: ReadonlyMap<TeamId, RevivalAction>;
     } = {},
   ): RoundInputs {
     return {
       battle: { plays: opts.plays ?? [] },
-      forbidden: { drawnCards: opts.forbidden ?? [fire5, water3] },
-      movement: {
-        attribute: opts.movementAttribute ?? 'fire',
-        teamMoves: opts.teamMoves ?? [],
-      },
+      movement: { teamMoves: opts.teamMoves ?? [] },
       revival: { choices: opts.revivalChoices ?? new Map() },
     };
   }
@@ -100,7 +116,7 @@ describe('runRound', () => {
       life: 4,
       gridCards: [wood1, wood4],
     });
-    const s = stateWith([teamA, teamB]);
+    const s = stateWith([teamA, teamB], deckOfTriples([[wood1, wood1, fire5]]));
     const out = runRound(s, makeInputs());
     // After full round, revival advances round to 2
     expect(out.state.round).toBe(2);
@@ -120,7 +136,7 @@ describe('runRound', () => {
       life: 4,
       gridCards: [wood1, wood4],
     });
-    const s = stateWith([teamA, teamB]);
+    const s = stateWith([teamA, teamB], deckOfTriples([[wood1, wood1, fire5]]));
     const out = runRound(
       s,
       makeInputs({
@@ -135,7 +151,7 @@ describe('runRound', () => {
     expect(battleLogs[0]?.message).toContain('Team 1');
   });
 
-  it('logs the new forbidden cell', () => {
+  it('draws the forbidden coord from the top of state.deck', () => {
     const teamA = makeTeam({
       id: 1 as NumberToken,
       position: fireWater,
@@ -148,16 +164,101 @@ describe('runRound', () => {
       life: 4,
       gridCards: [wood1, wood4],
     });
-    const s = stateWith([teamA, teamB]);
-    const out = runRound(s, makeInputs({ forbidden: [water3, fire5] }));
+    const s = stateWith([teamA, teamB], [water3, fire5, fire5]);
+    const out = runRound(s, makeInputs());
     const forbiddenLogs = out.log.filter((e) => e.phase === 'forbidden');
     expect(forbiddenLogs).toHaveLength(1);
     expect(forbiddenLogs[0]?.message).toContain('water');
     expect(forbiddenLogs[0]?.message).toContain('fire');
+    expect(out.state.forbiddenCells).toContainEqual({ x: 'water', y: 'fire' });
+  });
+
+  it('consumes 3 cards per round from state.deck (2 forbidden + 1 movement)', () => {
+    const teamA = makeTeam({
+      id: 1 as NumberToken,
+      position: fireWater,
+      life: 4,
+      gridCards: [fire5, water3],
+    });
+    const teamB = makeTeam({
+      id: 2 as NumberToken,
+      position: waterWater,
+      life: 4,
+      gridCards: [wood1, wood4],
+    });
+    const deck = deckOfTriples([[wood1, wood1, fire5]]);
+    const s = stateWith([teamA, teamB], deck);
+    const out = runRound(s, makeInputs());
+    expect(s.deck).toHaveLength(3);
+    expect(out.state.deck).toHaveLength(0);
+  });
+
+  it('skips forbidden phase when deck has fewer than 2 cards', () => {
+    const teamA = makeTeam({
+      id: 1 as NumberToken,
+      position: fireWater,
+      life: 4,
+      gridCards: [fire5, water3],
+    });
+    const teamB = makeTeam({
+      id: 2 as NumberToken,
+      position: waterWater,
+      life: 4,
+      gridCards: [wood1, wood4],
+    });
+    const s = stateWith([teamA, teamB], [wood1]); // only 1 card
+    const out = runRound(s, makeInputs());
+    const forbiddenLogs = out.log.filter((e) => e.phase === 'forbidden');
+    expect(forbiddenLogs).toHaveLength(1);
+    expect(forbiddenLogs[0]?.message).toContain('exhausted');
+    // No new forbidden cell added because phase skipped
+    expect(out.state.forbiddenCells).toEqual([]);
+  });
+
+  it('skips movement phase when deck is empty after forbidden draw', () => {
+    const teamA = makeTeam({
+      id: 1 as NumberToken,
+      position: fireWater,
+      life: 4,
+      gridCards: [fire5, water3],
+    });
+    const teamB = makeTeam({
+      id: 2 as NumberToken,
+      position: waterWater,
+      life: 4,
+      gridCards: [wood1, wood4],
+    });
+    const s = stateWith([teamA, teamB], [wood1, wood1]); // forbidden draws both, none for movement
+    const out = runRound(s, makeInputs());
+    const movementLogs = out.log.filter((e) => e.phase === 'movement');
+    expect(movementLogs.length).toBeGreaterThanOrEqual(1);
+    expect(movementLogs.some((l) => l.message.includes('exhausted'))).toBe(
+      true,
+    );
+  });
+
+  it('treats a drawn Joker as the fire-element fallback for forbidden coord', () => {
+    const teamA = makeTeam({
+      id: 1 as NumberToken,
+      position: fireWater,
+      life: 4,
+      gridCards: [fire5, water3],
+    });
+    const teamB = makeTeam({
+      id: 2 as NumberToken,
+      position: waterWater,
+      life: 4,
+      gridCards: [wood1, wood4],
+    });
+    const s = stateWith([teamA, teamB], [joker, water3, fire5]);
+    const out = runRound(s, makeInputs());
+    expect(out.state.forbiddenCells).toContainEqual({
+      x: 'fire',
+      y: 'water',
+    });
   });
 
   it('stops early when game ends mid-round (battle eliminates loser)', () => {
-    // Team A: full life. Team B: 1 life. Battle damage will eliminate B.
     const teamA = makeTeam({
       id: 1 as NumberToken,
       position: fireWater,
@@ -170,7 +271,7 @@ describe('runRound', () => {
       life: 1,
       gridCards: [wood1, wood4],
     });
-    const s = stateWith([teamA, teamB]);
+    const s = stateWith([teamA, teamB], deckOfTriples([[wood1, wood1, fire5]]));
     const out = runRound(
       s,
       makeInputs({
@@ -181,7 +282,6 @@ describe('runRound', () => {
       }),
     );
     expect(isGameOver(out.state)).toBe(true);
-    // Forbidden / movement / revival should NOT have run
     const forbiddenLogs = out.log.filter((e) => e.phase === 'forbidden');
     expect(forbiddenLogs).toHaveLength(0);
   });
@@ -199,8 +299,12 @@ describe('runRound', () => {
       life: 4,
       gridCards: [wood1, wood4],
     });
+    const baseState = stateWith(
+      [teamA, teamB],
+      deckOfTriples([[wood1, wood1, fire5]]),
+    );
     const initialState: RoundState = {
-      ...stateWith([teamA, teamB]),
+      ...baseState,
       droppedLifeTokens: {
         fire: { fire: 0, water: 1, wood: 0 },
         water: { fire: 0, water: 0, wood: 0 },
@@ -220,7 +324,6 @@ describe('runRound', () => {
 
 describe('runUntilGameOver', () => {
   it('terminates within maxRounds and returns winner', () => {
-    // 2-team setup, scripted provider: team 1 always wins via joker
     const teamA = makeTeam({
       id: 1 as NumberToken,
       position: fireWater,
@@ -233,7 +336,11 @@ describe('runUntilGameOver', () => {
       life: 2,
       gridCards: [wood1, wood4],
     });
-    const s = stateWith([teamA, teamB]);
+    // Plenty of deck for up to 10 rounds × 3 draws each.
+    const deck = Array.from({ length: 30 }, (_, i) =>
+      i % 3 === 2 ? fire5 : wood1,
+    );
+    const s = stateWith([teamA, teamB], deck);
 
     const provider: InputProvider = () => ({
       battle: {
@@ -242,8 +349,7 @@ describe('runUntilGameOver', () => {
           { teamId: 2 as NumberToken, card: wood4 },
         ],
       },
-      forbidden: { drawnCards: [fire5, water3] },
-      movement: { attribute: 'fire', teamMoves: [] },
+      movement: { teamMoves: [] },
       revival: { choices: new Map() },
     });
 
@@ -254,9 +360,6 @@ describe('runUntilGameOver', () => {
   });
 
   it('caps at maxRounds when game does not end', () => {
-    // 2 teams that draw every round → never ends.
-    // Forbidden cell points at an unoccupied coordinate to avoid
-    // the movement-phase penalty eliminating teams over time.
     const teamA = makeTeam({
       id: 1 as NumberToken,
       position: fireWater,
@@ -269,8 +372,13 @@ describe('runUntilGameOver', () => {
       life: 4,
       gridCards: [wood1, wood4],
     });
-    const s = stateWith([teamA, teamB]);
-    const woodPin: ElementCard = { kind: 'element', element: 'wood', value: 1 };
+    // Each round's forbidden draws both wood (so cell = wood,wood,
+    // unoccupied) and movement attribute is wood (neither team's
+    // movement card matches → only rotates, no position change).
+    const deck = deckOfTriples(
+      Array.from({ length: 6 }, () => [wood1, wood1, wood4] as const),
+    );
+    const s = stateWith([teamA, teamB], deck);
     const provider: InputProvider = () => ({
       battle: {
         plays: [
@@ -278,9 +386,7 @@ describe('runUntilGameOver', () => {
           { teamId: 2 as NumberToken, card: null },
         ],
       },
-      // Forbidden cell at (wood, wood) — neither team occupies it.
-      forbidden: { drawnCards: [woodPin, woodPin] },
-      movement: { attribute: 'fire', teamMoves: [] },
+      movement: { teamMoves: [] },
       revival: { choices: new Map() },
     });
     const result = runUntilGameOver(s, provider, 5);
@@ -288,8 +394,9 @@ describe('runUntilGameOver', () => {
     expect(isGameOver(result.state)).toBe(false);
   });
 
-  it('integrates with setupGame', () => {
+  it('integrates with setupGame (deck populated by setup)', () => {
     const initial = setupGame({ playerCount: 4, seed: 7 }, DEFAULT_CONFIG);
+    expect((initial.deck ?? []).length).toBeGreaterThan(0);
     const teamIds = allTeams(initial).map((t) => t.teamNumber);
     expect(teamIds.length).toBe(2);
     // Scripted: each team always plays a joker (always wins or draws)
@@ -302,12 +409,10 @@ describe('runUntilGameOver', () => {
             card: joker as Card,
           })),
         },
-        forbidden: { drawnCards: [fire5, water3] },
         movement: {
-          attribute: 'fire',
           teamMoves: teams.map((t) => ({
             teamId: t.teamNumber,
-            card: fire5 as Card,
+            card: fire1 as Card,
             intendedFacing: t.facing,
           })),
         },

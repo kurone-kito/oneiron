@@ -233,5 +233,9 @@ export function setupGame(input: SetupInput, config: GameConfig): RoundState {
     round: 1,
     grid,
     forbiddenCells: [],
+    // Whatever is left in the shuffled deck after dealing becomes
+    // the runtime draw pile (forbidden / movement / revival).
+    deck: shuffled,
+    graveyard: [],
   };
 }
