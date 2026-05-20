@@ -487,6 +487,75 @@ describe('runRound', () => {
     ).toBe(true);
   });
 
+  it('draws fallback cards but skips movement without an emergency-draw submission', () => {
+    const teamA = makeTeam({
+      id: 1 as NumberToken,
+      position: fireWater,
+      life: 4,
+      gridCards: [wood4, wood1],
+      cards: [],
+    });
+    const teamB = makeTeam({
+      id: 2 as NumberToken,
+      position: waterWater,
+      life: 4,
+      gridCards: [fire5, water3],
+      cards: [fire5],
+    });
+    const s = stateWith([teamA, teamB], [wood1, wood1, fire5, water3, fire5]);
+    const out = runRound(s, makeInputs());
+
+    const fallbackTeam = out.state.grid.fire.water.find(
+      (t) => t.teamNumber === 1,
+    );
+    expect(fallbackTeam?.facing).toBe('north');
+    expect(fallbackTeam?.cards).toEqual([water3, fire5]);
+    expect(fallbackTeam?.gridCards).toEqual([wood4, wood1]);
+    expect(out.state.deck).toEqual([]);
+    expect(
+      out.log.some((entry) =>
+        entry.message.includes(
+          'had no movement submission after the empty-hand movement fallback draw',
+        ),
+      ),
+    ).toBe(true);
+  });
+
+  it('uses the first remaining hand card when an emergency-draw choice survives battle with cards left', () => {
+    const teamA = makeTeam({
+      id: 1 as NumberToken,
+      position: fireWater,
+      life: 4,
+      gridCards: [wood4, wood1],
+      cards: [water3, fire5],
+    });
+    const teamB = makeTeam({
+      id: 2 as NumberToken,
+      position: waterWater,
+      life: 4,
+      gridCards: [fire5, wood1],
+      cards: [fire5],
+    });
+    const s = stateWith([teamA, teamB], [wood1, wood1, fire5]);
+    const out = runRound(
+      s,
+      makeInputs({
+        teamMoves: [
+          {
+            kind: 'emergency-draw',
+            teamId: 1 as NumberToken,
+            intendedFacing: 'east',
+          },
+        ],
+      }),
+    );
+
+    const movedTeam = out.state.grid.fire.water.find((t) => t.teamNumber === 1);
+    expect(movedTeam?.facing).toBe('east');
+    expect(movedTeam?.cards).toEqual([fire5]);
+    expect(out.state.deck).toEqual([]);
+  });
+
   it('rejects explicit movement choices for empty-hand teams', () => {
     const teamA = makeTeam({
       id: 1 as NumberToken,

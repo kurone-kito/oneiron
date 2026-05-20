@@ -37,7 +37,9 @@ type EmergencyDrawMovementChoice = {
   /**
    * Optional emergency-draw pick for a hand-empty team. `0` chooses
    * the first drawn card, `1` the second. When omitted or unavailable,
-   * the runner falls back to the first drawn card.
+   * the runner falls back to the first drawn card. If battle-side
+   * card flow leaves cards in hand after input collection, the runner
+   * instead consumes the first remaining hand card heuristically.
    */
   readonly emergencyDrawPick?: 0 | 1;
 };
@@ -201,8 +203,21 @@ function resolveMovementChoices(
         cards: [...team.cards, ...emergencyDraw.drawn],
       };
       next = updateTeam(next, replenishedTeam);
-      const selectedDrawIndex =
-        choice?.kind === 'emergency-draw' ? (choice.emergencyDrawPick ?? 0) : 0;
+      log.push({
+        round,
+        phase: 'movement',
+        message: `Team ${teamId} drew ${emergencyDraw.drawn.length} card(s) for the empty-hand movement fallback`,
+      });
+      if (choice?.kind !== 'emergency-draw') {
+        log.push({
+          round,
+          phase: 'movement',
+          message: `Team ${teamId} had no movement submission after the empty-hand movement fallback draw`,
+        });
+        continue;
+      }
+
+      const selectedDrawIndex = choice.emergencyDrawPick ?? 0;
       const selectedCard =
         selectedDrawIndex === 1
           ? (secondDrawnCard ?? firstDrawnCard)
@@ -211,25 +226,28 @@ function resolveMovementChoices(
       resolvedMoves.push({
         teamId,
         card: selectedCard,
-        intendedFacing: choice?.intendedFacing ?? team.facing,
-        ...(choice?.gridSwapIndex !== undefined
+        intendedFacing: choice.intendedFacing,
+        ...(choice.gridSwapIndex !== undefined
           ? { gridSwapIndex: choice.gridSwapIndex }
           : {}),
-      });
-
-      log.push({
-        round,
-        phase: 'movement',
-        message: `Team ${teamId} drew ${emergencyDraw.drawn.length} card(s) for the empty-hand movement fallback`,
       });
       continue;
     }
 
     if (choice === undefined) continue;
-    if (choice.kind !== 'explicit') {
-      throw new RangeError(
-        `Team ${teamId} must use an explicit movement choice while cards remain in hand.`,
-      );
+    if (choice.kind === 'emergency-draw') {
+      const [firstHandCard] = team.cards;
+      if (firstHandCard === undefined) continue;
+
+      resolvedMoves.push({
+        teamId,
+        card: firstHandCard,
+        intendedFacing: choice.intendedFacing,
+        ...(choice.gridSwapIndex !== undefined
+          ? { gridSwapIndex: choice.gridSwapIndex }
+          : {}),
+      });
+      continue;
     }
 
     resolvedMoves.push({
@@ -339,7 +357,7 @@ export function runRound(state: RoundState, inputs: RoundInputs): RoundOutput {
     log.push({
       round,
       phase: 'movement',
-      message: `Movement resolution: ${resolvedMovement.teamMoves.length} moves submitted`,
+      message: `Movement resolution: ${resolvedMovement.teamMoves.length} moves resolved`,
     });
     const movementPenalties = countTokenDelta(beforeMovement, next);
     if (movementPenalties > 0) {
