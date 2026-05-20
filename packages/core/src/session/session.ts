@@ -58,7 +58,6 @@ export type SessionStep =
   | { readonly status: 'done'; readonly state: RoundState };
 
 const DEFAULT_HUMAN_CONTROL: TeamControl = { type: 'human' };
-
 function controlFor(
   controls: ReadonlyMap<TeamId, TeamControl>,
   teamId: TeamId,
@@ -74,6 +73,12 @@ function sortedLivingTeams(
   return allTeams(state)
     .filter((team) => isTeamAlive(team))
     .filter((team) => controlFor(controls, team.teamNumber).type === type)
+    .sort((left, right) => left.teamNumber - right.teamNumber);
+}
+
+function sortedAllLivingTeams(state: RoundState): TeamState[] {
+  return allTeams(state)
+    .filter((team) => isTeamAlive(team))
     .sort((left, right) => left.teamNumber - right.teamNumber);
 }
 
@@ -113,25 +118,78 @@ function hasCompleteInputs<T>(
   return values !== undefined && teamIds.every((teamId) => values.has(teamId));
 }
 
-function primeHumanMovementHands(
+function primeMovementFallbackHands(
   state: RoundState,
   controls: ReadonlyMap<TeamId, TeamControl>,
-): RoundState {
+): {
+  readonly state: RoundState;
+  readonly preparedBotChoices: readonly MovementChoice[];
+  readonly preparedBotTeams: ReadonlySet<TeamId>;
+} {
   let next = state;
-  const humanTeams = sortedLivingTeams(next, controls, 'human');
-  for (const team of humanTeams) {
-    if (team.cards.length > 0) continue;
+  const preparedBotChoices: MovementChoice[] = [];
+  const preparedBotTeams = new Set<TeamId>();
+
+  for (const team of sortedAllLivingTeams(next)) {
+    if (team.cards.length > 0) {
+      continue;
+    }
+
     const latestTeam = findTeam(next, team.teamNumber);
-    if (latestTeam === undefined || latestTeam.cards.length > 0) continue;
+    if (latestTeam === undefined || latestTeam.cards.length > 0) {
+      continue;
+    }
+
+    const control = controlFor(controls, team.teamNumber);
+    let botMovementChoice: ReturnType<TeamStrategy['chooseTeamMove']> = null;
+    if (control.type === 'bot') {
+      preparedBotTeams.add(team.teamNumber);
+      const movement = control.strategy.chooseTeamMove(next, team.teamNumber);
+      if (movement?.kind === 'explicit') {
+        throw new RangeError(
+          `Team ${team.teamNumber} cannot use an explicit movement choice with an empty hand.`,
+        );
+      }
+      botMovementChoice = movement;
+    }
+
     const draw = drawFromDeck(next.deck, 2);
-    if (draw.drawn.length === 0) continue;
+    if (draw.drawn.length === 0) {
+      continue;
+    }
+    const [firstDrawnCard, secondDrawnCard] = draw.drawn;
+
     const updated: TeamState = {
       ...latestTeam,
       cards: [...latestTeam.cards, ...draw.drawn],
     };
     next = updateTeam({ ...next, deck: draw.remaining }, updated);
+
+    if (botMovementChoice?.kind === 'emergency-draw') {
+      if (firstDrawnCard === undefined) {
+        continue;
+      }
+      const selectedCard =
+        botMovementChoice.emergencyDrawPick === 1
+          ? (secondDrawnCard ?? firstDrawnCard)
+          : firstDrawnCard;
+      preparedBotChoices.push({
+        kind: 'explicit',
+        teamId: team.teamNumber,
+        card: selectedCard,
+        intendedFacing: botMovementChoice.intendedFacing,
+        ...(botMovementChoice.gridSwapIndex !== undefined
+          ? { gridSwapIndex: botMovementChoice.gridSwapIndex }
+          : {}),
+      });
+    }
   }
-  return next;
+
+  return {
+    state: next,
+    preparedBotChoices,
+    preparedBotTeams,
+  };
 }
 
 function humanMovementTeams(
@@ -153,6 +211,8 @@ export function createSession(
   let current = initial;
   let pendingRequest: HumanInputRequest | null = null;
   let pendingMovementAttribute: Element | null = null;
+  let pendingPreparedBotMovementChoices: readonly MovementChoice[] = [];
+  let pendingPreparedBotMovementTeams = new Set<TeamId>();
 
   function applyBattle(
     battlePlays: ReadonlyMap<TeamId, BattlePlay> | undefined,
@@ -183,6 +243,9 @@ export function createSession(
       return humanMovementTeams(current, config.controls);
     }
 
+    pendingPreparedBotMovementChoices = [];
+    pendingPreparedBotMovementTeams = new Set<TeamId>();
+
     const moveDraw = drawFromDeck(current.deck, 1);
     if (moveDraw.drawn.length < 1) {
       current = { ...current, phase: 'revival' };
@@ -192,7 +255,7 @@ export function createSession(
 
     const attrCard = coerceToElementCard(moveDraw.drawn[0] as Card);
     pendingMovementAttribute = attrCard.element;
-    current = primeHumanMovementHands(
+    const prepared = primeMovementFallbackHands(
       {
         ...current,
         deck: moveDraw.remaining,
@@ -200,6 +263,9 @@ export function createSession(
       },
       config.controls,
     );
+    current = prepared.state;
+    pendingPreparedBotMovementChoices = prepared.preparedBotChoices;
+    pendingPreparedBotMovementTeams = new Set(prepared.preparedBotTeams);
     return humanMovementTeams(current, config.controls);
   }
 
@@ -211,7 +277,9 @@ export function createSession(
       throw new Error('Movement attribute missing while resolving movement.');
     }
 
-    const movementChoices: MovementChoice[] = [];
+    const movementChoices: MovementChoice[] = [
+      ...pendingPreparedBotMovementChoices,
+    ];
     for (const teamId of humanTeams) {
       const move = teamMoves?.get(teamId);
       if (move === undefined) continue;
@@ -227,6 +295,9 @@ export function createSession(
     }
 
     for (const team of sortedLivingTeams(current, config.controls, 'bot')) {
+      if (pendingPreparedBotMovementTeams.has(team.teamNumber)) {
+        continue;
+      }
       const movement = teamControlStrategy(team.teamNumber).chooseTeamMove(
         current,
         team.teamNumber,
@@ -245,12 +316,17 @@ export function createSession(
       resolved.teamMoves,
     );
     pendingMovementAttribute = null;
+    pendingPreparedBotMovementChoices = [];
+    pendingPreparedBotMovementTeams = new Set<TeamId>();
   }
 
   function applyRevival(
     revivalActions: ReadonlyMap<TeamId, RevivalAction> | undefined,
   ): void {
     const choices = new Map<TeamId, RevivalAction>();
+    const eligibleHumanTeams = new Set(
+      eligibleRevivalHumanTeams(current, config.controls),
+    );
 
     for (const team of sortedLivingTeams(current, config.controls, 'bot')) {
       const revival = teamControlStrategy(team.teamNumber).chooseRevivalAction(
@@ -263,6 +339,9 @@ export function createSession(
     }
 
     for (const [teamId, action] of revivalActions ?? new Map()) {
+      if (!eligibleHumanTeams.has(teamId)) {
+        continue;
+      }
       choices.set(teamId, action);
     }
 
@@ -322,7 +401,12 @@ export function createSession(
             }
             break;
           case 'revival':
-            if (humanInputs?.revivalActions === undefined) {
+            if (
+              !hasCompleteInputs(
+                pendingRequest.humanTeams,
+                humanInputs?.revivalActions,
+              )
+            ) {
               return {
                 status: 'awaiting',
                 request: pendingRequest,
@@ -385,10 +469,7 @@ export function createSession(
               current,
               config.controls,
             );
-            if (
-              humanInputs?.revivalActions === undefined &&
-              humanTeams.length > 0
-            ) {
+            if (!hasCompleteInputs(humanTeams, humanInputs?.revivalActions)) {
               return awaiting({ phase: 'revival', humanTeams });
             }
             applyRevival(humanInputs?.revivalActions);

@@ -28,10 +28,9 @@ export type MovementChoice =
 type MovementEventLogger = (message: string) => void;
 
 /**
- * Forbidden-phase Joker fallback: when the GM "draws" a Joker for
- * the forbidden cell coordinate, the rules call for an "attribute
- * card" but don't define joker semantics for the forbidden marker.
- * v1 uses 'fire' as a deterministic fallback element coordinate.
+ * Phase-draw Joker fallback: forbidden-cell coordinates and the
+ * movement attribute both require element cards, so v1 coerces any
+ * joker draw to a deterministic fire attribute.
  */
 const JOKER_FORBIDDEN_FALLBACK: ElementCard = {
   kind: 'element',
@@ -73,7 +72,7 @@ export function updateTeam(state: RoundState, updated: TeamState): RoundState {
         ),
       },
     },
-  } as RoundState;
+  };
 }
 
 /**
@@ -93,6 +92,18 @@ export function drawFromDeck(
 
 export function coerceToElementCard(card: Card): ElementCard {
   return isElementCard(card) ? card : JOKER_FORBIDDEN_FALLBACK;
+}
+
+function hasMatchingCard(hand: readonly Card[], target: Card): boolean {
+  if (target.kind === 'joker') {
+    return hand.some((card) => card.kind === 'joker');
+  }
+  return hand.some(
+    (card) =>
+      card.kind === 'element' &&
+      card.element === target.element &&
+      card.value === target.value,
+  );
 }
 
 export function resolveMovementChoices(
@@ -183,6 +194,10 @@ export function resolveMovementChoices(
           ? { gridSwapIndex: choice.gridSwapIndex }
           : {}),
       });
+      continue;
+    }
+
+    if (!hasMatchingCard(team.cards, choice.card)) {
       continue;
     }
 

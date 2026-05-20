@@ -3,6 +3,7 @@ import { DEFAULT_CONFIG } from '../config.ts';
 import {
   createEmptyDroppedTokens,
   createEmptyGrid,
+  type DroppedTokens,
   isGameOver,
   type RoundState,
 } from '../logic/round.ts';
@@ -33,6 +34,7 @@ const woodWood: GridCoord = { x: 'wood', y: 'wood' };
 function stateWith(opts: {
   teams: readonly TeamState[];
   deck?: readonly Card[];
+  droppedLifeTokens?: DroppedTokens;
   phase?: 'battle' | 'forbidden' | 'movement' | 'revival';
   forbiddenCells?: readonly GridCoord[];
 }): RoundState {
@@ -51,7 +53,7 @@ function stateWith(opts: {
     forbiddenCells: opts.forbiddenCells ?? [],
     deck: [...(opts.deck ?? [])],
     graveyard: [],
-    droppedLifeTokens: createEmptyDroppedTokens(),
+    droppedLifeTokens: opts.droppedLifeTokens ?? createEmptyDroppedTokens(),
   };
 }
 
@@ -193,6 +195,74 @@ describe('createSession', () => {
     expect(team?.cards).toHaveLength(1);
     expect(team?.cards[0]).toEqual(wood1);
     expect(team?.gridCards?.[0]).toEqual(fire5);
+  });
+
+  it('preserves empty-hand movement fallback draw order across controls', () => {
+    const fallbackStrategy: TeamStrategy = {
+      chooseBattlePlay() {
+        return { card: null };
+      },
+      chooseTeamMove() {
+        return {
+          kind: 'emergency-draw',
+          intendedFacing: 'east',
+          gridSwapIndex: 0,
+          emergencyDrawPick: 0,
+        };
+      },
+      chooseRevivalAction() {
+        return null;
+      },
+    };
+    const state = stateWith({
+      teams: [
+        makeTeam({
+          id: 1 as NumberToken,
+          position: fireFire,
+          cards: [],
+          gridCards: [wood1, water3],
+        }),
+        makeTeam({
+          id: 2 as NumberToken,
+          position: woodWood,
+          cards: [],
+          gridCards: [fire1, wood4],
+        }),
+      ],
+      deck: [fire1, water1, water3, wood1, fire5, joker, wood4],
+    });
+    const session = createSession(state, {
+      controls: new Map([
+        [
+          1 as NumberToken,
+          { type: 'bot' as const, strategy: fallbackStrategy },
+        ],
+        [2 as NumberToken, { type: 'human' as const }],
+      ]),
+    });
+
+    const battle = session.step();
+    expect(battle).toMatchObject({
+      status: 'awaiting',
+      request: { phase: 'battle', humanTeams: [2] },
+    });
+
+    const movement = session.step({
+      battlePlays: new Map([
+        [2 as NumberToken, { teamId: 2 as NumberToken, card: null }],
+      ]),
+    });
+
+    expect(movement).toMatchObject({
+      status: 'awaiting',
+      request: {
+        phase: 'movement',
+        humanTeams: [2],
+        movementAttribute: 'water',
+      },
+    });
+    const humanTeam = findTeam(movement.state, 2 as NumberToken);
+    expect(humanTeam?.cards).toEqual([joker, wood4]);
   });
 
   it('awaits battle, movement, and revival for an all-human round', () => {
@@ -342,6 +412,208 @@ describe('createSession', () => {
       status: 'awaiting',
       request: { phase: 'revival', humanTeams: [1] },
     });
+  });
+
+  it('ignores revival inputs for bot-controlled teams', () => {
+    const dropped = createEmptyDroppedTokens();
+    const droppedLifeTokens: DroppedTokens = {
+      ...dropped,
+      fire: { ...dropped.fire, fire: 1 },
+      wood: { ...dropped.wood, wood: 1 },
+    };
+    const state = stateWith({
+      teams: [
+        makeTeam({
+          id: 1 as NumberToken,
+          position: fireFire,
+          life: 3,
+          cards: [fire5],
+        }),
+        makeTeam({
+          id: 2 as NumberToken,
+          position: woodWood,
+          life: 3,
+          cards: [wood1],
+        }),
+      ],
+      deck: [fire1, water1, water3],
+      droppedLifeTokens,
+      phase: 'revival',
+    });
+    const session = createSession(state, {
+      controls: new Map([
+        [1 as NumberToken, { type: 'human' as const }],
+        [
+          2 as NumberToken,
+          {
+            type: 'bot' as const,
+            strategy: {
+              chooseBattlePlay() {
+                return { card: null };
+              },
+              chooseTeamMove() {
+                return null;
+              },
+              chooseRevivalAction() {
+                return null;
+              },
+            },
+          },
+        ],
+      ]),
+    });
+
+    const revival = session.step();
+    expect(revival).toMatchObject({
+      status: 'awaiting',
+      request: { phase: 'revival', humanTeams: [1] },
+    });
+
+    const done = session.step({
+      revivalActions: new Map([
+        [1 as NumberToken, { type: 'charge-cards' as const }],
+        [2 as NumberToken, { type: 'charge-life' as const }],
+      ]),
+    });
+
+    expect(done.status).toBe('done');
+    const botTeam = findTeam(done.state, 2 as NumberToken);
+    expect(botTeam?.players[0]?.life).toBe(3);
+    expect(done.state.droppedLifeTokens?.wood.wood).toBe(1);
+  });
+
+  it('keeps awaiting revival until every human team submits an action', () => {
+    const dropped = createEmptyDroppedTokens();
+    const state = stateWith({
+      teams: [
+        makeTeam({
+          id: 1 as NumberToken,
+          position: fireFire,
+          life: 3,
+          cards: [fire5],
+        }),
+        makeTeam({
+          id: 2 as NumberToken,
+          position: woodWood,
+          life: 3,
+          cards: [wood1],
+        }),
+      ],
+      deck: [fire1, water1, water3],
+      droppedLifeTokens: {
+        ...dropped,
+        fire: { ...dropped.fire, fire: 1 },
+      },
+      phase: 'revival',
+    });
+    const session = createSession(state, {
+      controls: new Map([
+        [1 as NumberToken, { type: 'human' as const }],
+        [2 as NumberToken, { type: 'human' as const }],
+      ]),
+    });
+
+    const revival = session.step();
+    expect(revival).toMatchObject({
+      status: 'awaiting',
+      request: { phase: 'revival', humanTeams: [1] },
+    });
+
+    const stillAwaiting = session.step({
+      revivalActions: new Map(),
+    });
+    expect(stillAwaiting).toMatchObject({
+      status: 'awaiting',
+      request: { phase: 'revival', humanTeams: [1] },
+    });
+
+    const done = session.step({
+      revivalActions: new Map([
+        [1 as NumberToken, { type: 'charge-life' as const }],
+      ]),
+    });
+    expect(done.status).toBe('done');
+    expect(done.state.droppedLifeTokens?.fire.fire).toBe(0);
+  });
+
+  it('ignores explicit movement cards that are not in the team hand', () => {
+    const state = stateWith({
+      teams: [
+        makeTeam({
+          id: 1 as NumberToken,
+          position: fireFire,
+          cards: [water3],
+          gridCards: [wood1, fire1],
+        }),
+        makeTeam({
+          id: 2 as NumberToken,
+          position: woodWood,
+          cards: [wood4],
+          gridCards: [fire5, wood1],
+        }),
+      ],
+      deck: [water1, water1, fire1],
+    });
+    const session = createSession(state, {
+      controls: new Map([
+        [1 as NumberToken, { type: 'human' as const }],
+        [
+          2 as NumberToken,
+          {
+            type: 'bot' as const,
+            strategy: {
+              chooseBattlePlay() {
+                return { card: null };
+              },
+              chooseTeamMove() {
+                return null;
+              },
+              chooseRevivalAction() {
+                return null;
+              },
+            },
+          },
+        ],
+      ]),
+    });
+
+    expect(session.step()).toMatchObject({
+      status: 'awaiting',
+      request: { phase: 'battle', humanTeams: [1] },
+    });
+
+    const movement = session.step({
+      battlePlays: new Map([
+        [1 as NumberToken, { teamId: 1 as NumberToken, card: null }],
+      ]),
+    });
+    expect(movement).toMatchObject({
+      status: 'awaiting',
+      request: {
+        phase: 'movement',
+        humanTeams: [1],
+        movementAttribute: 'fire',
+      },
+    });
+
+    const done = session.step({
+      teamMoves: new Map([
+        [
+          1 as NumberToken,
+          {
+            teamId: 1 as NumberToken,
+            card: fire5,
+            intendedFacing: 'east',
+          },
+        ],
+      ]),
+    });
+
+    expect(done.status).toBe('done');
+    const humanTeam = findTeam(done.state, 1 as NumberToken);
+    expect(humanTeam?.cards).toEqual([water3]);
+    expect(humanTeam?.gridCards).toEqual([wood1, fire1]);
+    expect(humanTeam?.facing).toBe('north');
   });
 
   it('treats missing controls as human without throwing', () => {
