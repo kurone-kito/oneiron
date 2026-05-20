@@ -25,6 +25,7 @@ function makeTeam(opts: {
   life?: number;
   members?: 1 | 2;
   gridCards?: readonly [Card, Card];
+  cards?: readonly Card[];
 }): TeamState {
   const facing = opts.facing ?? 'north';
   const life = opts.life ?? 2;
@@ -37,7 +38,7 @@ function makeTeam(opts: {
     teamNumber: opts.id,
     position: opts.position,
     facing,
-    cards: [],
+    cards: opts.cards ?? [],
     players,
     ...(opts.gridCards ? { gridCards: opts.gridCards } : {}),
   };
@@ -241,6 +242,7 @@ describe('resolveBattlePhase', () => {
       life: 4,
       members: 1,
       gridCards: [fire5, water3],
+      cards: [fire5],
     });
     const teamB = makeTeam({
       id: 2 as NumberToken,
@@ -249,6 +251,7 @@ describe('resolveBattlePhase', () => {
       life: 4,
       members: 1,
       gridCards: [wood1, wood4],
+      cards: [wood4],
     });
     const s = stateWith([teamA, teamB]);
     const out = resolveBattlePhase(s, [
@@ -273,6 +276,7 @@ describe('resolveBattlePhase', () => {
       life: 4,
       members: 1,
       gridCards: [joker, joker],
+      cards: [joker],
     });
     const teamB = makeTeam({
       id: 2 as NumberToken,
@@ -281,6 +285,7 @@ describe('resolveBattlePhase', () => {
       life: 4,
       members: 1,
       gridCards: [fire5, water3],
+      cards: [fire5],
     });
     const s = stateWith([teamA, teamB]);
     const out = resolveBattlePhase(s, [
@@ -322,6 +327,7 @@ describe('resolveBattlePhase', () => {
       life: 4,
       members: 1,
       gridCards: [fire5, water3],
+      cards: [fire5],
     });
     const teamB = makeTeam({
       id: 2 as NumberToken,
@@ -346,6 +352,7 @@ describe('resolveBattlePhase', () => {
       life: 1,
       members: 1,
       gridCards: [wood1, wood4],
+      cards: [wood1],
     });
     const winnerTeam = makeTeam({
       id: 1 as NumberToken,
@@ -354,6 +361,7 @@ describe('resolveBattlePhase', () => {
       life: 4,
       members: 1,
       gridCards: [fire5, water3],
+      cards: [fire5],
     });
     const s = stateWith([winnerTeam, loser]);
     const out = resolveBattlePhase(s, [
@@ -375,6 +383,7 @@ describe('resolveBattlePhase', () => {
       life: 4,
       members: 1,
       gridCards: [fire5, water3],
+      cards: [fire5],
     });
     const b = makeTeam({
       id: 2 as NumberToken,
@@ -382,6 +391,7 @@ describe('resolveBattlePhase', () => {
       life: 4,
       members: 1,
       gridCards: [wood1, wood4],
+      cards: [fire9],
     });
     const s = stateWith([a, b]);
     const out = resolveBattlePhase(s, [
@@ -402,12 +412,13 @@ describe('resolveBattlePhase', () => {
       life: 4,
       members: 1,
       gridCards: [fire13, water3],
+      cards: [fire13],
     });
     const teamB: TeamState = {
       teamNumber: 2 as NumberToken,
       position: fireWater,
       facing: 'south',
-      cards: [],
+      cards: [wood1],
       players: [{ life: createLifeToken(1) }, { life: createLifeToken(4) }],
       gridCards: [wood1, wood4],
     };
@@ -437,6 +448,7 @@ describe('resolveBattlePhase', () => {
       life: 4,
       members: 1,
       gridCards: [wood1, wood1],
+      cards: [wood1],
     });
     const b = makeTeam({
       id: 2 as NumberToken,
@@ -445,6 +457,7 @@ describe('resolveBattlePhase', () => {
       life: 4,
       members: 1,
       gridCards: [fire5, water3],
+      cards: [fire5],
     });
     const c = makeTeam({
       id: 3 as NumberToken,
@@ -453,6 +466,7 @@ describe('resolveBattlePhase', () => {
       life: 4,
       members: 1,
       gridCards: [fire13, wood12],
+      cards: [fire5],
     });
     const s = stateWith([a, b, c]);
     const out = resolveBattlePhase(s, [
@@ -462,5 +476,187 @@ describe('resolveBattlePhase', () => {
     ]);
     // Only 1 encounter pair this round
     expect(out.results).toHaveLength(1);
+  });
+});
+
+describe('resolveBattlePhase — hand consumption + validation', () => {
+  function play(teamId: NumberToken, card: Card | null): BattlePlay {
+    return { teamId, card };
+  }
+
+  it('removes the played card from the team hand', () => {
+    const teamA = makeTeam({
+      id: 1 as NumberToken,
+      position: fireWater,
+      life: 4,
+      members: 1,
+      gridCards: [fire5, water3],
+      cards: [fire5, joker],
+    });
+    const teamB = makeTeam({
+      id: 2 as NumberToken,
+      position: fireWater,
+      life: 4,
+      members: 1,
+      gridCards: [wood1, wood4],
+      cards: [wood4],
+    });
+    const s = stateWith([teamA, teamB]);
+    const out = resolveBattlePhase(s, [
+      play(1 as NumberToken, fire5),
+      play(2 as NumberToken, wood4),
+    ]);
+    const newA = out.state.grid.fire.water.find((t) => t.teamNumber === 1);
+    const newB = out.state.grid.fire.water.find((t) => t.teamNumber === 2);
+    expect(newA?.cards).toEqual([joker]);
+    expect(newB?.cards).toEqual([]);
+  });
+
+  it('appends consumed cards to the graveyard', () => {
+    const teamA = makeTeam({
+      id: 1 as NumberToken,
+      position: fireWater,
+      life: 4,
+      members: 1,
+      gridCards: [fire5, water3],
+      cards: [fire5],
+    });
+    const teamB = makeTeam({
+      id: 2 as NumberToken,
+      position: fireWater,
+      life: 4,
+      members: 1,
+      gridCards: [wood1, wood4],
+      cards: [wood4],
+    });
+    const s = stateWith([teamA, teamB]);
+    const out = resolveBattlePhase(s, [
+      play(1 as NumberToken, fire5),
+      play(2 as NumberToken, wood4),
+    ]);
+    expect(out.state.graveyard).toHaveLength(2);
+    expect(out.state.graveyard).toContainEqual(fire5);
+    expect(out.state.graveyard).toContainEqual(wood4);
+  });
+
+  it('removes only one matching card when hand contains duplicates', () => {
+    const teamA = makeTeam({
+      id: 1 as NumberToken,
+      position: fireWater,
+      life: 4,
+      members: 1,
+      gridCards: [fire5, water3],
+      cards: [fire5, fire5],
+    });
+    const teamB = makeTeam({
+      id: 2 as NumberToken,
+      position: fireWater,
+      life: 4,
+      members: 1,
+      gridCards: [wood1, wood4],
+      cards: [wood4],
+    });
+    const s = stateWith([teamA, teamB]);
+    const out = resolveBattlePhase(s, [
+      play(1 as NumberToken, fire5),
+      play(2 as NumberToken, wood4),
+    ]);
+    const newA = out.state.grid.fire.water.find((t) => t.teamNumber === 1);
+    expect(newA?.cards).toEqual([fire5]);
+  });
+
+  it('matches the first joker in hand for a Joker play', () => {
+    const teamA = makeTeam({
+      id: 1 as NumberToken,
+      position: fireWater,
+      life: 4,
+      members: 1,
+      gridCards: [fire5, water3],
+      cards: [joker, fire5],
+    });
+    const teamB = makeTeam({
+      id: 2 as NumberToken,
+      position: fireWater,
+      life: 4,
+      members: 1,
+      gridCards: [wood1, wood4],
+      cards: [wood4],
+    });
+    const s = stateWith([teamA, teamB]);
+    const out = resolveBattlePhase(s, [
+      play(1 as NumberToken, joker),
+      play(2 as NumberToken, wood4),
+    ]);
+    const newA = out.state.grid.fire.water.find((t) => t.teamNumber === 1);
+    expect(newA?.cards).toEqual([fire5]);
+    expect(out.state.graveyard).toContainEqual(joker);
+  });
+
+  it('throws when a played card is not in the team hand', () => {
+    const teamA = makeTeam({
+      id: 1 as NumberToken,
+      position: fireWater,
+      life: 4,
+      members: 1,
+      gridCards: [fire5, water3],
+      cards: [], // empty hand
+    });
+    const teamB = makeTeam({
+      id: 2 as NumberToken,
+      position: fireWater,
+      life: 4,
+      members: 1,
+      gridCards: [wood1, wood4],
+      cards: [wood4],
+    });
+    const s = stateWith([teamA, teamB]);
+    expect(() =>
+      resolveBattlePhase(s, [
+        play(1 as NumberToken, fire5),
+        play(2 as NumberToken, wood4),
+      ]),
+    ).toThrow(/not in hand/);
+  });
+
+  it('throws when an unknown team is referenced', () => {
+    const teamA = makeTeam({
+      id: 1 as NumberToken,
+      position: fireWater,
+      life: 4,
+      members: 1,
+      gridCards: [fire5, water3],
+      cards: [fire5],
+    });
+    const s = stateWith([teamA]);
+    expect(() =>
+      resolveBattlePhase(s, [play(99 as NumberToken, fire5)]),
+    ).toThrow(/Team 99 not on grid/);
+  });
+
+  it('null (forfeit) play does not touch hand or graveyard', () => {
+    const teamA = makeTeam({
+      id: 1 as NumberToken,
+      position: fireWater,
+      life: 4,
+      members: 1,
+      gridCards: [fire5, water3],
+      cards: [fire5],
+    });
+    const teamB = makeTeam({
+      id: 2 as NumberToken,
+      position: fireWater,
+      life: 4,
+      members: 1,
+      gridCards: [wood1, wood4],
+      cards: [],
+    });
+    const s = stateWith([teamA, teamB]);
+    const out = resolveBattlePhase(s, [
+      play(1 as NumberToken, null),
+      play(2 as NumberToken, null),
+    ]);
+    const newA = out.state.grid.fire.water.find((t) => t.teamNumber === 1);
+    expect(newA?.cards).toEqual([fire5]);
+    expect(out.state.graveyard ?? []).toEqual([]);
   });
 });
