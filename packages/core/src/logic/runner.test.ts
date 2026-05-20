@@ -259,7 +259,13 @@ describe('runRound', () => {
     const out = runRound(
       s,
       makeInputs({
-        teamMoves: [{ teamId: 1 as NumberToken, intendedFacing: 'east' }],
+        teamMoves: [
+          {
+            kind: 'emergency-draw',
+            teamId: 1 as NumberToken,
+            intendedFacing: 'east',
+          },
+        ],
       }),
     );
 
@@ -276,6 +282,16 @@ describe('runRound', () => {
         ),
       ),
     ).toBe(true);
+    const movementAttributeIndex = out.log.findIndex(
+      (entry) => entry.message === 'Movement attribute: fire',
+    );
+    const emergencyDrawIndex = out.log.findIndex((entry) =>
+      entry.message.includes(
+        'drew 2 card(s) for the empty-hand movement fallback',
+      ),
+    );
+    expect(movementAttributeIndex).toBeGreaterThanOrEqual(0);
+    expect(emergencyDrawIndex).toBeGreaterThan(movementAttributeIndex);
   });
 
   it('lets the caller pick which emergency-drawn card is used for movement', () => {
@@ -299,6 +315,7 @@ describe('runRound', () => {
       makeInputs({
         teamMoves: [
           {
+            kind: 'emergency-draw',
             teamId: 1 as NumberToken,
             intendedFacing: 'east',
             emergencyDrawPick: 1,
@@ -314,6 +331,73 @@ describe('runRound', () => {
     expect(movedTeam?.gridCards).toEqual([fire5, wood4]);
     expect(out.state.graveyard).toContainEqual(wood1);
     expect(out.state.deck).toEqual([]);
+  });
+
+  it('draws for simultaneous empty-hand teams in ascending team-number order', () => {
+    const teamA = makeTeam({
+      id: 1 as NumberToken,
+      position: fireWater,
+      life: 4,
+      gridCards: [wood4, wood1],
+      cards: [],
+    });
+    const teamB = makeTeam({
+      id: 2 as NumberToken,
+      position: waterWater,
+      life: 4,
+      gridCards: [fire5, wood1],
+      cards: [],
+    });
+    const s = stateWith(
+      [teamA, teamB],
+      [wood1, wood1, fire5, water3, fire5, wood4],
+    );
+    const out = runRound(
+      s,
+      makeInputs({
+        teamMoves: [
+          {
+            kind: 'emergency-draw',
+            teamId: 1 as NumberToken,
+            intendedFacing: 'east',
+          },
+          {
+            kind: 'emergency-draw',
+            teamId: 2 as NumberToken,
+            intendedFacing: 'south',
+            gridSwapIndex: 1,
+          },
+        ],
+      }),
+    );
+
+    const movedTeamA = out.state.grid.fire.water.find(
+      (t) => t.teamNumber === 1,
+    );
+    const movedTeamB = out.state.grid.water.water.find(
+      (t) => t.teamNumber === 2,
+    );
+    expect(movedTeamA?.cards).toEqual([fire5]);
+    expect(movedTeamA?.gridCards).toEqual([water3, wood1]);
+    expect(movedTeamB?.cards).toEqual([]);
+    expect(movedTeamB?.gridCards).toEqual([fire5, wood4]);
+    expect(out.state.graveyard).toContainEqual(wood4);
+    expect(out.state.graveyard).toContainEqual(wood1);
+    expect(out.state.deck).toEqual([]);
+    expect(
+      out.log.some((entry) =>
+        entry.message.includes(
+          'Team 1 drew 2 card(s) for the empty-hand movement fallback',
+        ),
+      ),
+    ).toBe(true);
+    expect(
+      out.log.some((entry) =>
+        entry.message.includes(
+          'Team 2 drew 1 card(s) for the empty-hand movement fallback',
+        ),
+      ),
+    ).toBe(true);
   });
 
   it('uses the only remaining deck card for empty-hand movement fallback', () => {
@@ -335,7 +419,13 @@ describe('runRound', () => {
     const out = runRound(
       s,
       makeInputs({
-        teamMoves: [{ teamId: 1 as NumberToken, intendedFacing: 'east' }],
+        teamMoves: [
+          {
+            kind: 'emergency-draw',
+            teamId: 1 as NumberToken,
+            intendedFacing: 'east',
+          },
+        ],
       }),
     );
 
@@ -371,7 +461,13 @@ describe('runRound', () => {
     const out = runRound(
       s,
       makeInputs({
-        teamMoves: [{ teamId: 1 as NumberToken, intendedFacing: 'east' }],
+        teamMoves: [
+          {
+            kind: 'emergency-draw',
+            teamId: 1 as NumberToken,
+            intendedFacing: 'east',
+          },
+        ],
       }),
     );
 

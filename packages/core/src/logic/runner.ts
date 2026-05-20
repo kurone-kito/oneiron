@@ -21,6 +21,7 @@ import {
 } from './round.ts';
 
 type ExplicitMovementChoice = {
+  readonly kind: 'explicit';
   readonly teamId: TeamId;
   readonly intendedFacing: Facing;
   readonly gridSwapIndex?: 0 | 1;
@@ -29,6 +30,7 @@ type ExplicitMovementChoice = {
 };
 
 type EmergencyDrawMovementChoice = {
+  readonly kind: 'emergency-draw';
   readonly teamId: TeamId;
   readonly intendedFacing: Facing;
   readonly gridSwapIndex?: 0 | 1;
@@ -165,6 +167,10 @@ function resolveMovementChoices(
     }
   }
 
+  // Process every movement candidate in one team-number order so
+  // explicit submissions and emergency draws both stay deterministic
+  // regardless of submission order. This remains safe because
+  // movement later resolves each team's state independently.
   const orderedTeamIds = [...candidateIds].sort((a, b) => a - b);
   for (const teamId of orderedTeamIds) {
     const team = findTeam(next, teamId);
@@ -172,8 +178,6 @@ function resolveMovementChoices(
 
     const choice = choicesByTeam.get(teamId);
     if (team.cards.length === 0) {
-      // Simultaneous reveals need a deterministic engine order when
-      // multiple teams draw from the shared deck in the same step.
       const emergencyDraw = drawFromDeck(next.deck, 2);
       next = { ...next, deck: emergencyDraw.remaining };
       if (emergencyDraw.drawn.length === 0) {
@@ -191,9 +195,7 @@ function resolveMovementChoices(
       };
       next = updateTeam(next, replenishedTeam);
       const selectedDrawIndex =
-        choice !== undefined && 'emergencyDrawPick' in choice
-          ? (choice.emergencyDrawPick ?? 0)
-          : 0;
+        choice?.kind === 'emergency-draw' ? (choice.emergencyDrawPick ?? 0) : 0;
       const selectedCard =
         emergencyDraw.drawn[selectedDrawIndex] ?? emergencyDraw.drawn[0];
 
@@ -215,10 +217,15 @@ function resolveMovementChoices(
     }
 
     if (choice === undefined) continue;
+    if (choice.kind !== 'explicit') {
+      throw new RangeError(
+        `Team ${teamId} must use an explicit movement choice while cards remain in hand.`,
+      );
+    }
 
     resolvedMoves.push({
       teamId,
-      card: 'card' in choice ? choice.card : (team.cards[0] as Card),
+      card: choice.card,
       intendedFacing: choice.intendedFacing,
       ...(choice.gridSwapIndex !== undefined
         ? { gridSwapIndex: choice.gridSwapIndex }
@@ -299,6 +306,11 @@ export function runRound(state: RoundState, inputs: RoundInputs): RoundOutput {
   } else {
     const drawn = moveDraw.drawn[0] as Card;
     const attrCard = coerceToElementCard(drawn);
+    log.push({
+      round,
+      phase: 'movement',
+      message: `Movement attribute: ${attrCard.element}`,
+    });
     const movementInputState: RoundState = {
       ...next,
       deck: moveDraw.remaining,
@@ -318,7 +330,7 @@ export function runRound(state: RoundState, inputs: RoundInputs): RoundOutput {
     log.push({
       round,
       phase: 'movement',
-      message: `Movement attribute: ${attrCard.element} (${resolvedMovement.teamMoves.length} moves submitted)`,
+      message: `Movement resolution: ${resolvedMovement.teamMoves.length} moves submitted`,
     });
     const movementPenalties = countTokenDelta(beforeMovement, next);
     if (movementPenalties > 0) {
