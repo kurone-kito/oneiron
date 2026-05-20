@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import type { ElementCard } from '../types/card.ts';
+import type { ElementCard, JokerCard } from '../types/card.ts';
 import type { Facing, GridCoord, TeamState } from '../types/grid.ts';
 import type { LifeToken, NumberToken } from '../types/token.ts';
+import { createLifeToken } from '../types/token.ts';
 import type { RoundState } from './round.ts';
 import {
   advanceBattle,
@@ -271,6 +272,140 @@ describe('advanceMovement — forbidden cell penalty', () => {
     ]);
     expect(next.grid.fire.water).toHaveLength(0);
     expect(next.droppedLifeTokens?.fire.water).toBe(1);
+  });
+});
+
+describe('advanceMovement — grid-card swap', () => {
+  const fire5: ElementCard = { kind: 'element', element: 'fire', value: 5 };
+  const water3: ElementCard = { kind: 'element', element: 'water', value: 3 };
+  const wood1: ElementCard = { kind: 'element', element: 'wood', value: 1 };
+
+  it('swaps gridCards[0] with the played card by default', () => {
+    const team: TeamState = {
+      teamNumber: 1 as NumberToken,
+      position: fireWater,
+      facing: 'north',
+      cards: [wood1],
+      players: [{ life: createLifeToken(2) }],
+      gridCards: [fire5, water3],
+    };
+    const s = stateWith([team]);
+    const next = advanceMovement(s, 'fire', [
+      {
+        teamId: 1 as NumberToken,
+        card: wood1,
+        intendedFacing: 'east',
+      },
+    ]);
+    const newTeam = next.grid.fire.water.find((t) => t.teamNumber === 1);
+    expect(newTeam?.gridCards).toEqual([wood1, water3]);
+    expect(newTeam?.cards).toEqual([]);
+    expect(next.graveyard).toContainEqual(fire5);
+  });
+
+  it('swaps gridCards[1] when gridSwapIndex = 1', () => {
+    const team: TeamState = {
+      teamNumber: 1 as NumberToken,
+      position: fireWater,
+      facing: 'north',
+      cards: [wood1],
+      players: [{ life: createLifeToken(2) }],
+      gridCards: [fire5, water3],
+    };
+    const s = stateWith([team]);
+    const next = advanceMovement(s, 'fire', [
+      {
+        teamId: 1 as NumberToken,
+        card: wood1,
+        intendedFacing: 'east',
+        gridSwapIndex: 1,
+      },
+    ]);
+    const newTeam = next.grid.fire.water.find((t) => t.teamNumber === 1);
+    expect(newTeam?.gridCards).toEqual([fire5, wood1]);
+    expect(next.graveyard).toContainEqual(water3);
+  });
+
+  it('removes played card from hand', () => {
+    const team: TeamState = {
+      teamNumber: 1 as NumberToken,
+      position: fireWater,
+      facing: 'north',
+      cards: [wood1, fire5],
+      players: [{ life: createLifeToken(2) }],
+      gridCards: [fire5, water3],
+    };
+    const s = stateWith([team]);
+    const next = advanceMovement(s, 'fire', [
+      {
+        teamId: 1 as NumberToken,
+        card: wood1,
+        intendedFacing: 'east',
+      },
+    ]);
+    const newTeam = next.grid.fire.water.find((t) => t.teamNumber === 1);
+    expect(newTeam?.cards).toEqual([fire5]);
+  });
+
+  it('joker swap works', () => {
+    const joker: JokerCard = { kind: 'joker' };
+    const team: TeamState = {
+      teamNumber: 1 as NumberToken,
+      position: fireWater,
+      facing: 'north',
+      cards: [joker],
+      players: [{ life: createLifeToken(2) }],
+      gridCards: [fire5, water3],
+    };
+    const s = stateWith([team]);
+    // Joker is a movement card → team moves forward (north). New
+    // position after stepForward('fire-water', 'north') is fire-wood.
+    const next = advanceMovement(s, 'water', [
+      {
+        teamId: 1 as NumberToken,
+        card: joker,
+        intendedFacing: 'east',
+      },
+    ]);
+    const newTeam = next.grid.fire.wood.find((t) => t.teamNumber === 1);
+    expect(newTeam?.gridCards?.[0]).toEqual(joker);
+    expect(next.graveyard).toContainEqual(fire5);
+  });
+
+  it('throws when played card is not in team hand (and team has gridCards)', () => {
+    const team: TeamState = {
+      teamNumber: 1 as NumberToken,
+      position: fireWater,
+      facing: 'north',
+      cards: [],
+      players: [{ life: createLifeToken(2) }],
+      gridCards: [fire5, water3],
+    };
+    const s = stateWith([team]);
+    expect(() =>
+      advanceMovement(s, 'fire', [
+        {
+          teamId: 1 as NumberToken,
+          card: wood1,
+          intendedFacing: 'east',
+        },
+      ]),
+    ).toThrow(/not in hand/);
+  });
+
+  it('legacy team without gridCards: no swap, no hand validation', () => {
+    const team = makeTeam(1 as NumberToken, fireWater, 'north');
+    const s = stateWith([team]);
+    const next = advanceMovement(s, 'fire', [
+      {
+        teamId: 1 as NumberToken,
+        card: wood1,
+        intendedFacing: 'east',
+      },
+    ]);
+    const newTeam = next.grid.fire.water.find((t) => t.teamNumber === 1);
+    expect(newTeam?.gridCards).toBeUndefined();
+    expect(next.graveyard ?? []).toEqual([]);
   });
 });
 
