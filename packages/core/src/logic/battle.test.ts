@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest';
+import type { GameConfig } from '../config.ts';
+import { DEFAULT_CONFIG } from '../config.ts';
 import type { Card, ElementCard, JokerCard } from '../types/card.ts';
 import type { Facing, Grid, GridCoord, TeamState } from '../types/grid.ts';
 import type { NumberToken } from '../types/token.ts';
@@ -658,5 +660,185 @@ describe('resolveBattlePhase — hand consumption + validation', () => {
     const newA = out.state.grid.fire.water.find((t) => t.teamNumber === 1);
     expect(newA?.cards).toEqual([fire5]);
     expect(out.state.graveyard ?? []).toEqual([]);
+  });
+});
+
+describe('resolveBattlePhase — forfeit on elimination', () => {
+  function play(teamId: NumberToken, card: Card | null): BattlePlay {
+    return { teamId, card };
+  }
+
+  // wood2 not in the shared constants — declare locally.
+  const wood2: ElementCard = { kind: 'element', element: 'wood', value: 2 };
+
+  it('eliminated loser forfeits 1 card to the winner; remainder to graveyard', () => {
+    // Team A (life 4) beats Team B (life 1, eliminated). Loser hand
+    // has [wood2, fire5] AFTER the played card is consumed. Winner
+    // gets first card (wood2); fire5 goes to graveyard.
+    const winnerTeam = makeTeam({
+      id: 1 as NumberToken,
+      position: fireWater,
+      facing: 'north',
+      life: 4,
+      members: 1,
+      gridCards: [fire5, water3],
+      cards: [fire5],
+    });
+    const loser = makeTeam({
+      id: 2 as NumberToken,
+      position: fireWater,
+      facing: 'south',
+      life: 1,
+      members: 1,
+      gridCards: [wood1, wood4],
+      cards: [wood1, wood2, fire5],
+    });
+    const s = stateWith([winnerTeam, loser]);
+    const out = resolveBattlePhase(s, [
+      play(1 as NumberToken, fire5),
+      play(2 as NumberToken, wood1),
+    ]);
+    expect(out.results[0]?.winner).toBe(1);
+    // Winner gains 1 forfeit card (first remaining after consume)
+    const newWinner = out.state.grid.fire.water.find((t) => t.teamNumber === 1);
+    expect(newWinner?.cards).toContainEqual(wood2);
+    // Remaining loser card → graveyard
+    expect(out.state.graveyard).toContainEqual(fire5);
+  });
+
+  it('overflow grants E× extra forfeit cards (default E=2)', () => {
+    // Loser has life=1, damage=3 → overflow=2 → forfeit=1+2*2=5
+    // Loser hand has 6 cards (after played card consumed, 5
+    // remaining). Winner takes 5; 0 to graveyard.
+    const winnerTeam = makeTeam({
+      id: 1 as NumberToken,
+      position: fireWater,
+      facing: 'north',
+      life: 4,
+      members: 1,
+      gridCards: [fire13, water3],
+      cards: [fire13],
+    });
+    const loser = makeTeam({
+      id: 2 as NumberToken,
+      position: fireWater,
+      facing: 'south',
+      life: 1,
+      members: 1,
+      gridCards: [wood1, wood4],
+      cards: [wood1, fire5, wood2, water3, fire5, fire5],
+    });
+    const s = stateWith([winnerTeam, loser]);
+    // fire13 vs wood1: fire wins. damage = 1 base + 1 facing + 1 bonus = 3
+    const out = resolveBattlePhase(s, [
+      play(1 as NumberToken, fire13),
+      play(2 as NumberToken, wood1),
+    ]);
+    expect(out.results[0]?.damage).toBe(3);
+    // Loser life 1 → overflow=2 → forfeit=5
+    const newWinner = out.state.grid.fire.water.find((t) => t.teamNumber === 1);
+    // Winner started with 0 in hand (played fire13). Gains 5 from
+    // loser. Loser played wood1 → remaining was 5 cards.
+    expect(newWinner?.cards.length).toBe(5);
+  });
+
+  it('survive (no elimination): no forfeit', () => {
+    const winnerTeam = makeTeam({
+      id: 1 as NumberToken,
+      position: fireWater,
+      facing: 'north',
+      life: 4,
+      members: 1,
+      gridCards: [fire5, water3],
+      cards: [fire5],
+    });
+    const loser = makeTeam({
+      id: 2 as NumberToken,
+      position: fireWater,
+      facing: 'south',
+      life: 4,
+      members: 1,
+      gridCards: [wood1, wood4],
+      cards: [wood1, fire5, wood2],
+    });
+    const s = stateWith([winnerTeam, loser]);
+    const out = resolveBattlePhase(s, [
+      play(1 as NumberToken, fire5),
+      play(2 as NumberToken, wood1),
+    ]);
+    expect(out.results[0]?.winner).toBe(1);
+    const newWinner = out.state.grid.fire.water.find((t) => t.teamNumber === 1);
+    // Winner hand unchanged (no forfeit on survival)
+    expect(newWinner?.cards).toEqual([]);
+    // Loser still on grid with reduced life and unchanged remaining hand
+    const survivedLoser = out.state.grid.fire.water.find(
+      (t) => t.teamNumber === 2,
+    );
+    expect(survivedLoser?.cards).toEqual([fire5, wood2]);
+  });
+
+  it('elimination with empty loser hand: no transfer, no error', () => {
+    const winnerTeam = makeTeam({
+      id: 1 as NumberToken,
+      position: fireWater,
+      facing: 'north',
+      life: 4,
+      members: 1,
+      gridCards: [fire5, water3],
+      cards: [fire5],
+    });
+    const loser = makeTeam({
+      id: 2 as NumberToken,
+      position: fireWater,
+      facing: 'south',
+      life: 1,
+      members: 1,
+      gridCards: [wood1, wood4],
+      cards: [wood1], // single card, consumed during play
+    });
+    const s = stateWith([winnerTeam, loser]);
+    const out = resolveBattlePhase(s, [
+      play(1 as NumberToken, fire5),
+      play(2 as NumberToken, wood1),
+    ]);
+    const newWinner = out.state.grid.fire.water.find((t) => t.teamNumber === 1);
+    // After consuming played fire5 the winner's hand is empty.
+    // Loser hand empty after consume, so 0 cards transferred.
+    expect(newWinner?.cards).toEqual([]);
+  });
+
+  it('config E controls overflow forfeit multiplier', () => {
+    // Override config with E=3 to verify the multiplier flows.
+    const customConfig: GameConfig = {
+      ...DEFAULT_CONFIG,
+      damageOverflowFactor: 3,
+    };
+    const winnerTeam = makeTeam({
+      id: 1 as NumberToken,
+      position: fireWater,
+      facing: 'north',
+      life: 4,
+      members: 1,
+      gridCards: [fire13, water3],
+      cards: [fire13],
+    });
+    const loser = makeTeam({
+      id: 2 as NumberToken,
+      position: fireWater,
+      facing: 'south',
+      life: 1,
+      members: 1,
+      gridCards: [wood1, wood4],
+      cards: [wood1, fire5, fire5, fire5, fire5, fire5, fire5, fire5],
+    });
+    const s = stateWith([winnerTeam, loser]);
+    const out = resolveBattlePhase(
+      s,
+      [play(1 as NumberToken, fire13), play(2 as NumberToken, wood1)],
+      customConfig,
+    );
+    // damage 3, life 1 → overflow 2 → forfeit = 1 + 3*2 = 7
+    const newWinner = out.state.grid.fire.water.find((t) => t.teamNumber === 1);
+    expect(newWinner?.cards.length).toBe(7);
   });
 });
