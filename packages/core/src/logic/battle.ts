@@ -1,4 +1,4 @@
-import type { Card } from '../types/card.ts';
+import type { Card, Deck } from '../types/card.ts';
 import type { Grid, GridCoord, PlayerState, TeamState } from '../types/grid.ts';
 import { ELEMENT_AXIS, isAdjacent, isSameCoord } from '../types/grid.ts';
 import type { TeamId } from '../types/token.ts';
@@ -186,20 +186,95 @@ function updateTeamInGrid(grid: Grid, updated: TeamState): Grid {
 }
 
 /**
+ * Locates the first card in `hand` matching `played` by structural
+ * equality (Joker matches any joker; ElementCard matches identical
+ * element and value). Returns -1 when no match exists.
+ */
+function findHandCardIndex(hand: Deck, played: Card): number {
+  if (played.kind === 'joker') {
+    return hand.findIndex((c) => c.kind === 'joker');
+  }
+  return hand.findIndex(
+    (c) =>
+      c.kind === 'element' &&
+      c.element === played.element &&
+      c.value === played.value,
+  );
+}
+
+function describeCard(card: Card): string {
+  return card.kind === 'joker' ? 'Joker' : `${card.element} ${card.value}`;
+}
+
+/**
+ * Pre-resolution gate: each non-null play must reference a card
+ * actually held in that team's hand. Throws RangeError with a
+ * descriptive message on the first violation so the simulator
+ * surfaces caller bugs immediately. Cards-not-on-grid teams also
+ * throw.
+ */
+function validatePlays(grid: Grid, plays: readonly BattlePlay[]): void {
+  for (const play of plays) {
+    if (play.card === null) continue;
+    const team = allTeams(grid).find((t) => t.teamNumber === play.teamId);
+    if (team === undefined) {
+      throw new RangeError(
+        `Team ${play.teamId} not on grid; cannot play ${describeCard(play.card)}.`,
+      );
+    }
+    if (findHandCardIndex(team.cards, play.card) === -1) {
+      throw new RangeError(
+        `Team ${play.teamId} cannot play ${describeCard(play.card)}: not in hand.`,
+      );
+    }
+  }
+}
+
+/**
+ * Removes the first card matching `played` from `team.cards` and
+ * returns the updated team plus the removed card (which the caller
+ * appends to the graveyard). When no match exists (e.g. validation
+ * was bypassed), the team is returned unchanged and the played
+ * card is reported as the consumed card.
+ */
+function consumeFromHand(
+  team: TeamState,
+  played: Card,
+): { team: TeamState; consumed: Card } {
+  const idx = findHandCardIndex(team.cards, played);
+  if (idx === -1) {
+    return { team, consumed: played };
+  }
+  const consumed = team.cards[idx] as Card;
+  const cards = [...team.cards.slice(0, idx), ...team.cards.slice(idx + 1)];
+  return { team: { ...team, cards }, consumed };
+}
+
+/**
  * Resolves the battle phase end-to-end:
+ * - Validates that every non-null play references a card the team
+ *   actually holds in hand (throws RangeError otherwise).
  * - Compute encounter order via {@link orderEncounters}.
- * - For each encounter pair, take the played card (or `null` for
- *   card absence), determine the winner via `resolveCards`, compute
- *   damage via `calcDamage` (joker/absence → fixed 1), then apply
- *   damage to the loser, drop tokens at the loser's coordinate, and
- *   remove the team from the grid when all players are eliminated.
- * - Returns the updated state (with a refreshed `droppedLifeTokens`
- *   map) and the full enriched `BattleResult[]`.
+ * - For each encounter, removes the played cards from the
+ *   participating teams' hands and appends them to
+ *   `state.graveyard` BEFORE damage resolution (so the
+ *   pre-damage hand snapshot only contains remaining cards). For
+ *   eliminated teams the played card still lands in the
+ *   graveyard.
+ * - Then determines the winner via `resolveCards`, computes
+ *   damage via `calcDamage` (joker/absence → fixed 1), applies
+ *   damage to the loser, drops tokens at the loser's
+ *   coordinate, and removes the team from the grid when all
+ *   players are eliminated.
+ * - Returns the updated state (refreshed `droppedLifeTokens` and
+ *   `graveyard`) and the full enriched `BattleResult[]`.
  */
 export function resolveBattlePhase(
   state: RoundState,
   plays: readonly BattlePlay[],
 ): { readonly state: RoundState; readonly results: readonly BattleResult[] } {
+  validatePlays(state.grid, plays);
+
   const encounters = orderEncounters(state);
   const playMap = new Map<TeamId, Card | null>();
   for (const play of plays) {
@@ -208,11 +283,12 @@ export function resolveBattlePhase(
 
   let grid = state.grid;
   let droppedLifeTokens = state.droppedLifeTokens ?? createEmptyDroppedTokens();
+  let graveyard: readonly Card[] = state.graveyard ?? [];
   const results: BattleResult[] = [];
 
   for (const enc of encounters) {
-    const teamA = findTeam(grid, enc.teamA);
-    const teamB = findTeam(grid, enc.teamB);
+    let teamA = findTeam(grid, enc.teamA);
+    let teamB = findTeam(grid, enc.teamB);
     if (teamA === undefined || teamB === undefined) {
       results.push({ ...enc, winner: null, damage: 0 });
       continue;
@@ -224,6 +300,23 @@ export function resolveBattlePhase(
     const cardB = playMap.has(enc.teamB)
       ? (playMap.get(enc.teamB) as Card | null)
       : null;
+
+    // Consume played cards from each team's hand BEFORE damage
+    // resolution. Both teams retain the rest of their hand for
+    // potential post-encounter operations (e.g. forfeit on
+    // elimination — #110).
+    if (cardA !== null) {
+      const cons = consumeFromHand(teamA, cardA);
+      teamA = cons.team;
+      graveyard = [...graveyard, cons.consumed];
+      grid = updateTeamInGrid(grid, teamA);
+    }
+    if (cardB !== null) {
+      const cons = consumeFromHand(teamB, cardB);
+      teamB = cons.team;
+      graveyard = [...graveyard, cons.consumed];
+      grid = updateTeamInGrid(grid, teamB);
+    }
 
     let winnerId: TeamId | null = null;
     let damage = 0;
@@ -271,7 +364,7 @@ export function resolveBattlePhase(
   }
 
   return {
-    state: { ...state, grid, droppedLifeTokens },
+    state: { ...state, grid, droppedLifeTokens, graveyard },
     results,
   };
 }

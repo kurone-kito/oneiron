@@ -12,7 +12,7 @@ import type { InputProvider, RoundInputs } from './runner.ts';
 import { runRound, runUntilGameOver } from './runner.ts';
 import { setupGame } from './setup.ts';
 
-const fire1: ElementCard = { kind: 'element', element: 'fire', value: 1 };
+const _fire1: ElementCard = { kind: 'element', element: 'fire', value: 1 };
 const fire5: ElementCard = { kind: 'element', element: 'fire', value: 5 };
 const water3: ElementCard = { kind: 'element', element: 'water', value: 3 };
 const wood1: ElementCard = { kind: 'element', element: 'wood', value: 1 };
@@ -60,6 +60,7 @@ function makeTeam(opts: {
   life?: number;
   members?: 1 | 2;
   gridCards?: readonly [Card, Card];
+  cards?: readonly Card[];
 }): TeamState {
   const life = opts.life ?? 4;
   const members = opts.members ?? 1;
@@ -71,7 +72,7 @@ function makeTeam(opts: {
     teamNumber: opts.id,
     position: opts.position,
     facing: 'north',
-    cards: [],
+    cards: opts.cards ?? [],
     players,
     ...(opts.gridCards ? { gridCards: opts.gridCards } : {}),
   };
@@ -129,12 +130,14 @@ describe('runRound', () => {
       position: fireWater,
       life: 4,
       gridCards: [fire5, water3],
+      cards: [fire5],
     });
     const teamB = makeTeam({
       id: 2 as NumberToken,
       position: fireWater,
       life: 4,
       gridCards: [wood1, wood4],
+      cards: [wood4],
     });
     const s = stateWith([teamA, teamB], deckOfTriples([[wood1, wood1, fire5]]));
     const out = runRound(
@@ -264,12 +267,14 @@ describe('runRound', () => {
       position: fireWater,
       life: 4,
       gridCards: [fire5, water3],
+      cards: [fire5],
     });
     const teamB = makeTeam({
       id: 2 as NumberToken,
       position: fireWater,
       life: 1,
       gridCards: [wood1, wood4],
+      cards: [wood4],
     });
     const s = stateWith([teamA, teamB], deckOfTriples([[wood1, wood1, fire5]]));
     const out = runRound(
@@ -324,17 +329,22 @@ describe('runRound', () => {
 
 describe('runUntilGameOver', () => {
   it('terminates within maxRounds and returns winner', () => {
+    // Team A plays Joker every round; Team B plays wood4. Joker
+    // always wins → 1 damage/round. Team B has 2 life → eliminated
+    // in round 2. Hands sized for 2 rounds of consumption.
     const teamA = makeTeam({
       id: 1 as NumberToken,
       position: fireWater,
       life: 4,
       gridCards: [fire5, water3],
+      cards: [joker, joker],
     });
     const teamB = makeTeam({
       id: 2 as NumberToken,
       position: fireWater,
       life: 2,
       gridCards: [wood1, wood4],
+      cards: [wood4, wood4],
     });
     // Plenty of deck for up to 10 rounds × 3 draws each.
     const deck = Array.from({ length: 30 }, (_, i) =>
@@ -399,26 +409,16 @@ describe('runUntilGameOver', () => {
     expect((initial.deck ?? []).length).toBeGreaterThan(0);
     const teamIds = allTeams(initial).map((t) => t.teamNumber);
     expect(teamIds.length).toBe(2);
-    // Scripted: each team always plays a joker (always wins or draws)
-    const provider: InputProvider = (state) => {
-      const teams = allTeams(state);
-      return {
-        battle: {
-          plays: teams.map((t) => ({
-            teamId: t.teamNumber,
-            card: joker as Card,
-          })),
-        },
-        movement: {
-          teamMoves: teams.map((t) => ({
-            teamId: t.teamNumber,
-            card: fire1 as Card,
-            intendedFacing: t.facing,
-          })),
-        },
-        revival: { choices: new Map() },
-      };
-    };
+    // Scripted: each team forfeits (null play) so the game cannot
+    // end via battle. The provider doesn't need to know team hands.
+    // Movement also passes null-equivalent (no moves submitted).
+    const provider: InputProvider = () => ({
+      battle: {
+        plays: teamIds.map((id) => ({ teamId: id, card: null })),
+      },
+      movement: { teamMoves: [] },
+      revival: { choices: new Map() },
+    });
     const result = runUntilGameOver(initial, provider, 30);
     expect(result.rounds).toBeGreaterThan(0);
   });
