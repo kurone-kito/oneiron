@@ -5,6 +5,7 @@
  */
 
 declare class URL {
+  href: string;
   constructor(input: string, base?: string);
 }
 
@@ -44,4 +45,8 @@ declare module 'node:util' {
     values: Record<string, boolean | undefined>;
     positionals: string[];
   };
+}
+
+declare module 'node:url' {
+  export function pathToFileURL(path: string): URL;
 }

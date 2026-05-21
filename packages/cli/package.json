@@ -21,7 +21,7 @@
   "author": "kurone-kito <krone@kit.black> (https://kit.black/)",
   "type": "module",
   "bin": {
-    "oneiron": "./src/cli.ts"
+    "oneiron": "./bin/oneiron.js"
   },
   "scripts": {
     "start": "tsx src/cli.ts",

@@ -1,6 +1,7 @@
 #!/usr/bin/env -S node --experimental-strip-types
 
 import { readFile } from 'node:fs/promises';
+import { pathToFileURL } from 'node:url';
 import { parseArgs } from 'node:util';
 
 const HELP_TEXT = `oneiron - headless Dream Duels simulator
@@ -29,24 +30,28 @@ const options = {
 } as const;
 
 const readPackageVersion = async (): Promise<string> => {
-  const packageUrl = new URL('../package.json', import.meta.url);
-  const packageJson = await readFile(packageUrl, 'utf8');
-  const parsedPackage = JSON.parse(packageJson) as { version?: string };
-  const rawVersion = parsedPackage.version;
+  try {
+    const packageUrl = new URL('../package.json', import.meta.url);
+    const packageJson = await readFile(packageUrl, 'utf8');
+    const parsedPackage = JSON.parse(packageJson) as { version?: string };
+    const rawVersion = parsedPackage.version;
 
-  if (typeof rawVersion !== 'string') {
+    if (typeof rawVersion !== 'string') {
+      return FALLBACK_VERSION;
+    }
+
+    const sanitizedVersion = [...rawVersion]
+      .filter((character) => character >= ' ' && character !== '\u007f')
+      .join('');
+
+    if (!SAFE_VERSION_PATTERN.test(sanitizedVersion)) {
+      return FALLBACK_VERSION;
+    }
+
+    return sanitizedVersion;
+  } catch {
     return FALLBACK_VERSION;
   }
-
-  const sanitizedVersion = [...rawVersion]
-    .filter((character) => character >= ' ' && character !== '\u007f')
-    .join('');
-
-  if (!SAFE_VERSION_PATTERN.test(sanitizedVersion)) {
-    return FALLBACK_VERSION;
-  }
-
-  return sanitizedVersion;
 };
 
 const readErrorMessage = (error: unknown): string => {
@@ -92,5 +97,16 @@ export const runCli = async (
   return 0;
 };
 
-const exitCode = await runCli();
-process.exitCode = exitCode;
+const isDirectExecution = (): boolean => {
+  const entryPoint = process.argv[1];
+
+  return (
+    entryPoint !== undefined &&
+    pathToFileURL(entryPoint).href === import.meta.url
+  );
+};
+
+if (isDirectExecution()) {
+  const exitCode = await runCli();
+  process.exitCode = exitCode;
+}
