@@ -594,6 +594,42 @@ describe('runRound', () => {
     );
   });
 
+  it('rejects explicit movement choices that reference cards not in hand', () => {
+    const teamA = makeTeam({
+      id: 1 as NumberToken,
+      position: fireWater,
+      life: 4,
+      gridCards: [wood4, wood1],
+      cards: [water3],
+    });
+    const teamB = makeTeam({
+      id: 2 as NumberToken,
+      position: waterWater,
+      life: 4,
+      gridCards: [fire5, water3],
+      cards: [fire5],
+    });
+    const s = stateWith([teamA, teamB], [wood1, wood1, fire5]);
+
+    expect(() =>
+      runRound(
+        s,
+        makeInputs({
+          teamMoves: [
+            {
+              kind: 'explicit',
+              teamId: 1 as NumberToken,
+              card: fire5,
+              intendedFacing: 'east',
+            },
+          ],
+        }),
+      ),
+    ).toThrowError(
+      new RangeError('Team 1 cannot play fire 5 for movement: not in hand.'),
+    );
+  });
+
   it('treats a drawn Joker as the fire-element fallback for forbidden coord', () => {
     const teamA = makeTeam({
       id: 1 as NumberToken,
