@@ -8,6 +8,7 @@ import type {
   RevivalAction,
   RoundState,
   SessionConfig,
+  TeamControl,
   TeamId,
   TeamMove,
   TeamState,
@@ -18,7 +19,16 @@ import {
   isGameOver,
   winner as winnerOf,
 } from '@kurone-kito/oneiron-core';
-import { createMemo, createSignal, For, onMount, Show } from 'solid-js';
+import {
+  createEffect,
+  createMemo,
+  createSignal,
+  For,
+  on,
+  onCleanup,
+  onMount,
+  Show,
+} from 'solid-js';
 import { CardFace } from '../components/CardFace.tsx';
 import { GameGrid } from '../components/Grid.tsx';
 import { Hand } from '../components/Hand.tsx';
@@ -35,6 +45,10 @@ const REVIVAL_ACTIONS: readonly RevivalAction['type'][] = [
   'charge-life',
   'charge-cards',
 ];
+
+const MIN_AUTOPLAY_DELAY_MS = 0;
+const MAX_AUTOPLAY_DELAY_MS = 2000;
+const DEFAULT_AUTOPLAY_DELAY_MS = 200;
 
 function listLivingTeams(state: RoundState): TeamState[] {
   const teams: TeamState[] = [];
@@ -62,30 +76,53 @@ function describeCard(card: Card): string {
   return card.kind === 'joker' ? 'Joker' : `${card.element} ${card.value}`;
 }
 
-/**
- * Encodes a card as a stable string key so radio / option groups can
- * round-trip selection through the DOM without aliasing duplicate
- * entries.
- */
 function cardKey(card: Card, idx: number): string {
   return card.kind === 'joker'
     ? `joker@${idx}`
     : `${card.element}-${card.value}@${idx}`;
 }
 
+function controlsAreAllBot(
+  controls: ReadonlyMap<TeamId, TeamControl>,
+): boolean {
+  if (controls.size === 0) return false;
+  for (const control of controls.values()) {
+    if (control.type !== 'bot') return false;
+  }
+  return true;
+}
+
 export function GameplayScreen(props: GameplayScreenProps) {
   let session = createSession(props.initialState, props.config);
 
-  const [state, setState] = createSignal<RoundState>(props.initialState);
+  const [history, setHistory] = createSignal<readonly RoundState[]>([
+    props.initialState,
+  ]);
+  const [viewIndex, setViewIndex] = createSignal(0);
   const [pending, setPending] = createSignal<HumanInputRequest | null>(null);
   // The session does not currently surface phase-by-phase log entries;
   // the TurnLog renders an empty list until a logging hook is added in
-  // a follow-up issue. Keeping the signal in place so the JSX wiring is
-  // ready for that future work.
+  // a follow-up issue.
   const [log] = createSignal<readonly LogEntry[]>([]);
   const [over, setOver] = createSignal(false);
 
-  // Form state for the awaiting phase — keyed by team id.
+  const [autoPlayActive, setAutoPlayActive] = createSignal(false);
+  const [autoPlayDelayMs, setAutoPlayDelayMs] = createSignal(
+    DEFAULT_AUTOPLAY_DELAY_MS,
+  );
+
+  const headState = createMemo(() => {
+    const frames = history();
+    return frames[frames.length - 1] as RoundState;
+  });
+  const displayedState = createMemo(
+    () => history()[viewIndex()] ?? headState(),
+  );
+  const isViewingHistory = createMemo(
+    () => viewIndex() !== history().length - 1,
+  );
+  const isAllBot = createMemo(() => controlsAreAllBot(props.config.controls));
+
   const [battleSelections, setBattleSelections] = createSignal<
     ReadonlyMap<TeamId, string | null>
   >(new Map());
@@ -95,6 +132,11 @@ export function GameplayScreen(props: GameplayScreenProps) {
   const [revivalSelections, setRevivalSelections] = createSignal<
     ReadonlyMap<TeamId, RevivalAction['type']>
   >(new Map());
+
+  function pushState(next: RoundState): void {
+    setHistory((frames) => [...frames, next]);
+    setViewIndex(history().length - 1);
+  }
 
   function resetFormsFor(request: HumanInputRequest | null): void {
     if (request === null) {
@@ -106,7 +148,7 @@ export function GameplayScreen(props: GameplayScreenProps) {
     switch (request.phase) {
       case 'battle': {
         const next = new Map<TeamId, string | null>();
-        for (const id of request.humanTeams) next.set(id, null); // null = forfeit
+        for (const id of request.humanTeams) next.set(id, null);
         setBattleSelections(next);
         break;
       }
@@ -116,7 +158,7 @@ export function GameplayScreen(props: GameplayScreenProps) {
           { cardKey: string; facing: Facing; slot: 0 | 1 }
         >();
         for (const id of request.humanTeams) {
-          const team = findTeam(state(), id);
+          const team = findTeam(headState(), id);
           const firstCard = team?.cards[0];
           next.set(id, {
             cardKey: firstCard ? cardKey(firstCard, 0) : '',
@@ -136,48 +178,123 @@ export function GameplayScreen(props: GameplayScreenProps) {
     }
   }
 
-  /** Drives the session until it either awaits input or the game ends. */
-  function drive(humanInputs?: HumanInputs): void {
-    let iterations = 0;
-    let inputs = humanInputs;
-    while (iterations < 200) {
-      iterations += 1;
-      const result = session.step(inputs);
-      inputs = undefined;
-      setState(result.state);
+  /**
+   * Drives the session forward. Pushes a history frame after every
+   * `session.step` call so the replay UI can scrub through past
+   * states. Stops at the first awaiting request, at game-over, or
+   * once the round completes (so the auto-play loop can insert a
+   * delay between rounds).
+   *
+   * Returns the terminal status so callers know whether to keep
+   * ticking ('round-done') or wait for input ('awaiting' / 'game-over').
+   */
+  function drive(
+    humanInputs?: HumanInputs,
+  ): 'awaiting' | 'round-done' | 'game-over' {
+    const result = session.step(humanInputs);
+    pushState(result.state);
 
-      if (result.status === 'awaiting') {
-        setPending(result.request);
-        resetFormsFor(result.request);
-        return;
-      }
-      // status === 'done'
-      setPending(null);
-      if (isGameOver(result.state)) {
-        setOver(true);
-        return;
-      }
-      // Start next round with a fresh session over the same controls.
-      session = createSession(result.state, props.config);
+    if (result.status === 'awaiting') {
+      setPending(result.request);
+      resetFormsFor(result.request);
+      return 'awaiting';
     }
-    // Safety net — should not be reached in practice.
-    console.error('[GameplayScreen] drive() bailed out after 200 iterations');
+    setPending(null);
+    if (isGameOver(result.state)) {
+      setOver(true);
+      return 'game-over';
+    }
+    session = createSession(result.state, props.config);
+    return 'round-done';
   }
 
   onMount(() => {
+    // For all-bot configurations, leave the initial state visible
+    // and wait for the user to press Play. Mixed-control sessions
+    // advance until the first awaiting request so the matching
+    // input panel appears.
+    if (isAllBot()) return;
     drive();
   });
 
-  const livingTeams = createMemo(() => listLivingTeams(state()));
+  let autoPlayTimer: ReturnType<typeof setTimeout> | null = null;
+
+  function cancelAutoPlayTimer(): void {
+    if (autoPlayTimer !== null) {
+      clearTimeout(autoPlayTimer);
+      autoPlayTimer = null;
+    }
+  }
+
+  function tickAutoPlay(): void {
+    if (!autoPlayActive() || over() || pending() !== null) {
+      setAutoPlayActive(false);
+      return;
+    }
+    const status = drive();
+    if (status === 'game-over' || status === 'awaiting') {
+      setAutoPlayActive(false);
+      return;
+    }
+    scheduleAutoPlay();
+  }
+
+  function scheduleAutoPlay(): void {
+    cancelAutoPlayTimer();
+    autoPlayTimer = setTimeout(tickAutoPlay, autoPlayDelayMs());
+  }
+
+  // React to autoPlayActive transitions: start ticking when turned
+  // on; cancel any pending timer when turned off (regardless of
+  // whether the user paused or a terminal state ended the loop).
+  createEffect(
+    on(autoPlayActive, (active) => {
+      if (active) {
+        scheduleAutoPlay();
+      } else {
+        cancelAutoPlayTimer();
+      }
+    }),
+  );
+
+  onCleanup(cancelAutoPlayTimer);
+
+  function toggleAutoPlay(): void {
+    if (autoPlayActive()) {
+      setAutoPlayActive(false);
+      return;
+    }
+    if (over() || pending() !== null) return;
+    // Jump back to live before resuming so we don't fork off a
+    // history branch.
+    setViewIndex(history().length - 1);
+    setAutoPlayActive(true);
+  }
+
+  function goPrev(): void {
+    setViewIndex((idx) => Math.max(0, idx - 1));
+  }
+  function goNext(): void {
+    setViewIndex((idx) => Math.min(history().length - 1, idx + 1));
+  }
+  function goLive(): void {
+    setViewIndex(history().length - 1);
+  }
+  function jumpToFrame(target: number): void {
+    setViewIndex(Math.min(Math.max(0, target), history().length - 1));
+  }
+
+  const livingTeams = createMemo(() => listLivingTeams(displayedState()));
 
   function submitBattle(): void {
+    if (isViewingHistory()) return;
     const req = pending();
     if (req?.phase !== 'battle') return;
     const plays = new Map<TeamId, BattlePlay>();
     const selections = battleSelections();
     for (const id of req.humanTeams) {
       const key = selections.get(id) ?? null;
-      const team = findTeam(state(), id);
+      const team = findTeam(headState(), id);
       const card =
         key === null || team === undefined
           ? null
@@ -188,13 +305,14 @@ export function GameplayScreen(props: GameplayScreenProps) {
   }
 
   function submitMovement(): void {
+    if (isViewingHistory()) return;
     const req = pending();
     if (req?.phase !== 'movement') return;
     const moves = new Map<TeamId, TeamMove>();
     const selections = moveSelections();
     for (const id of req.humanTeams) {
       const sel = selections.get(id);
-      const team = findTeam(state(), id);
+      const team = findTeam(headState(), id);
       if (!sel || team === undefined) continue;
       const card = team.cards.find((c, i) => cardKey(c, i) === sel.cardKey);
       if (card === undefined) continue;
@@ -209,6 +327,7 @@ export function GameplayScreen(props: GameplayScreenProps) {
   }
 
   function submitRevival(): void {
+    if (isViewingHistory()) return;
     const req = pending();
     if (req?.phase !== 'revival') return;
     const actions = new Map<TeamId, RevivalAction>();
@@ -225,20 +344,87 @@ export function GameplayScreen(props: GameplayScreenProps) {
       <header class="gameplay__header">
         <h1>Game session</h1>
         <p>
-          Round <strong>{state().round}</strong>, phase{' '}
-          <strong>{state().phase}</strong>
+          Round <strong>{displayedState().round}</strong>, phase{' '}
+          <strong>{displayedState().phase}</strong>
         </p>
         <p>
-          Deck: <strong>{state().deck?.length ?? 0}</strong> · Graveyard:{' '}
-          <strong>{state().graveyard?.length ?? 0}</strong> · Forbidden cells:{' '}
-          <strong>{state().forbiddenCells.length}</strong>
+          Deck: <strong>{displayedState().deck?.length ?? 0}</strong> ·
+          Graveyard: <strong>{displayedState().graveyard?.length ?? 0}</strong>{' '}
+          · Forbidden cells:{' '}
+          <strong>{displayedState().forbiddenCells.length}</strong>
         </p>
       </header>
 
+      <section class="gameplay__history" aria-label="State history">
+        <h2>History</h2>
+        <p>
+          Frame <strong>{viewIndex() + 1}</strong> / {history().length}
+          <Show when={isViewingHistory()}>
+            {' '}
+            — <em>viewing history</em>
+          </Show>
+        </p>
+        <button type="button" onClick={goPrev} disabled={viewIndex() === 0}>
+          ← Previous
+        </button>
+        <button
+          type="button"
+          onClick={goNext}
+          disabled={viewIndex() >= history().length - 1}
+        >
+          Next →
+        </button>
+        <button
+          type="button"
+          onClick={goLive}
+          disabled={!isViewingHistory()}
+          aria-label="Jump to live"
+        >
+          Jump to live
+        </button>
+        <label>
+          Frame:
+          <input
+            type="range"
+            min="0"
+            max={history().length - 1}
+            value={viewIndex()}
+            onInput={(e) => jumpToFrame(Number(e.currentTarget.value))}
+            aria-label="History timeline"
+          />
+        </label>
+      </section>
+
+      <Show when={isAllBot()}>
+        <section class="gameplay__autoplay" aria-label="Auto-play controls">
+          <h2>Auto-play</h2>
+          <button
+            type="button"
+            onClick={toggleAutoPlay}
+            disabled={over() || isViewingHistory()}
+          >
+            {autoPlayActive() ? 'Pause' : 'Play'}
+          </button>
+          <label>
+            Delay (ms):
+            <input
+              type="range"
+              min={MIN_AUTOPLAY_DELAY_MS}
+              max={MAX_AUTOPLAY_DELAY_MS}
+              step="50"
+              value={autoPlayDelayMs()}
+              onInput={(e) => setAutoPlayDelayMs(Number(e.currentTarget.value))}
+              aria-label="Auto-play delay milliseconds"
+            />
+            <output>{autoPlayDelayMs()}</output>
+          </label>
+        </section>
+      </Show>
+
       <GameGrid
-        grid={state().grid}
-        forbiddenCells={[...state().forbiddenCells]}
-        currentPhase={state().phase}
+        grid={displayedState().grid}
+        forbiddenCells={[...displayedState().forbiddenCells]}
+        currentPhase={displayedState().phase}
       />
 
       <section aria-label="Surviving teams">
@@ -273,7 +459,7 @@ export function GameplayScreen(props: GameplayScreenProps) {
         </For>
       </section>
 
-      <Show when={pending() !== null && !over()}>
+      <Show when={pending() !== null && !over() && !isViewingHistory()}>
         <section
           class="gameplay__input"
           aria-label={`Phase input — ${pending()?.phase}`}
@@ -285,7 +471,7 @@ export function GameplayScreen(props: GameplayScreenProps) {
               each={(pending() as { humanTeams: readonly TeamId[] }).humanTeams}
             >
               {(teamId) => {
-                const team = findTeam(state(), teamId);
+                const team = findTeam(headState(), teamId);
                 return (
                   <fieldset>
                     <legend>Team {teamId} — battle play</legend>
@@ -343,7 +529,7 @@ export function GameplayScreen(props: GameplayScreenProps) {
               each={(pending() as { humanTeams: readonly TeamId[] }).humanTeams}
             >
               {(teamId) => {
-                const team = findTeam(state(), teamId);
+                const team = findTeam(headState(), teamId);
                 const cards = team?.cards ?? [];
                 return (
                   <fieldset>
@@ -462,15 +648,26 @@ export function GameplayScreen(props: GameplayScreenProps) {
         </section>
       </Show>
 
+      <Show when={isViewingHistory()}>
+        <section
+          class="gameplay__history-banner"
+          aria-label="History view banner"
+        >
+          <p>
+            <em>Viewing history. Jump to live to continue making inputs.</em>
+          </p>
+        </section>
+      </Show>
+
       <Show when={over()}>
         <section aria-label="Game over" class="gameplay__game-over">
           <h2>Game over</h2>
           <Show
-            when={winnerOf(state()) !== null}
+            when={winnerOf(headState()) !== null}
             fallback={<p>No winner — all teams eliminated or stalemate.</p>}
           >
             <p>
-              Winner: <strong>Team {winnerOf(state())}</strong>
+              Winner: <strong>Team {winnerOf(headState())}</strong>
             </p>
           </Show>
         </section>
