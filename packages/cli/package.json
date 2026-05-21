@@ -21,9 +21,16 @@
   "author": "kurone-kito <krone@kit.black> (https://kit.black/)",
   "type": "module",
   "bin": {
-    "oneiron": "./bin/oneiron.js"
+    "oneiron": "./dist/cli.js"
   },
+  "files": [
+    "dist",
+    "src"
+  ],
   "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "clean": "rimraf dist",
+    "prepare": "pnpm run build",
     "start": "tsx src/cli.ts",
     "typecheck": "tsc --noEmit"
   },
@@ -32,6 +39,7 @@
   },
   "devDependencies": {
     "@kurone-kito/typescript-config": "^0.22.0-alpha.9",
+    "rimraf": "^6.0.1",
     "tsx": "^4.8.1"
   }
 }
