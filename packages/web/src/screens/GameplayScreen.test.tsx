@@ -12,7 +12,7 @@ import {
   type TeamState,
 } from '@kurone-kito/oneiron-core';
 import { cleanup, fireEvent, render, screen } from '@solidjs/testing-library';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { GameplayScreen } from './GameplayScreen.tsx';
 
 afterEach(cleanup);
@@ -148,5 +148,97 @@ describe('GameplayScreen', () => {
     render(() => <GameplayScreen initialState={initial} config={config} />);
     const teamArticle = screen.queryAllByLabelText(/^Team \d+$/);
     expect(teamArticle.length).toBeGreaterThan(0);
+  });
+
+  it('keeps the initial state visible for all-bot sessions until Play', () => {
+    const initial = setupGame({ playerCount: 4, seed: 7 }, DEFAULT_CONFIG);
+    const config = botConfigFor(initial, 50);
+    render(() => <GameplayScreen initialState={initial} config={config} />);
+    // No auto-advance: history holds exactly the initial frame.
+    const historySection = screen.getByLabelText('State history');
+    expect(historySection.textContent ?? '').toMatch(/Frame\s*1\s*\/\s*1/);
+    expect(screen.getByRole('button', { name: 'Play' })).toBeTruthy();
+  });
+
+  it('auto-play advances rounds and pauses when the user clicks Pause', async () => {
+    vi.useFakeTimers();
+    try {
+      const initial = setupGame({ playerCount: 4, seed: 11 }, DEFAULT_CONFIG);
+      const config = botConfigFor(initial, 60);
+      render(() => <GameplayScreen initialState={initial} config={config} />);
+      const play = screen.getByRole('button', { name: 'Play' });
+      fireEvent.click(play);
+      // Default delay is 200ms; flush a few ticks worth.
+      await vi.advanceTimersByTimeAsync(1000);
+      const pause = screen.getByRole('button', { name: 'Pause' });
+      fireEvent.click(pause);
+      // After pausing, more than one frame should have accumulated.
+      const historySection = screen.getByLabelText('State history');
+      expect(historySection.textContent ?? '').not.toMatch(
+        /Frame\s*1\s*\/\s*1/,
+      );
+      expect(screen.getByRole('button', { name: 'Play' })).toBeTruthy();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('history navigation moves between frames and re-enables live mode', async () => {
+    vi.useFakeTimers();
+    try {
+      const initial = setupGame({ playerCount: 4, seed: 13 }, DEFAULT_CONFIG);
+      const config = botConfigFor(initial, 80);
+      render(() => <GameplayScreen initialState={initial} config={config} />);
+      fireEvent.click(screen.getByRole('button', { name: 'Play' }));
+      await vi.advanceTimersByTimeAsync(800);
+      fireEvent.click(screen.getByRole('button', { name: 'Pause' }));
+
+      const prev = screen.getByRole('button', { name: /Previous/ });
+      fireEvent.click(prev);
+      expect(screen.getByLabelText('History view banner')).toBeTruthy();
+
+      const jumpToLive = screen.getByRole('button', { name: 'Jump to live' });
+      fireEvent.click(jumpToLive);
+      expect(screen.queryByLabelText('History view banner')).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('hides phase input panels when viewing a historical frame', () => {
+    const teamA = makeTeam({
+      id: 1 as TeamId,
+      position: { x: 'fire', y: 'water' },
+      life: 3,
+      cards: [wood1],
+      gridCards: [fire5, water3],
+    });
+    const teamB = makeTeam({
+      id: 2 as TeamId,
+      position: { x: 'fire', y: 'water' },
+      life: 3,
+      cards: [wood4],
+      gridCards: [wood1, wood4],
+    });
+    const initial = stateWith([teamA, teamB]);
+    const controls = new Map<TeamId, TeamControl>([
+      [1 as TeamId, { type: 'human' }],
+      [2 as TeamId, { type: 'human' }],
+    ]);
+    render(() => (
+      <GameplayScreen
+        initialState={initial}
+        config={{ controls, gameConfig: DEFAULT_CONFIG }}
+      />
+    ));
+    expect(screen.getByLabelText(/phase input — battle/i)).toBeTruthy();
+    // Step back into history — submit a turn first so there's a
+    // prior frame to revisit.
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Submit battle plays' }),
+    );
+    fireEvent.click(screen.getByRole('button', { name: /Previous/ }));
+    expect(screen.queryByLabelText(/phase input — battle/i)).toBeNull();
+    expect(screen.getByLabelText('History view banner')).toBeTruthy();
   });
 });
