@@ -51,6 +51,12 @@ export type GameOutcome = {
   readonly survivingTeams: readonly TeamId[];
   readonly totalDamageDealt: number;
   readonly graveyardSize: number;
+  /**
+   * Teams that started the game with a single player (i.e. were
+   * "solo teams" after setup). Used by the report layer to compute
+   * solo-team win rates without a separate setup snapshot.
+   */
+  readonly soloTeams: readonly TeamId[];
 };
 
 export type BatchOutput = {
@@ -143,6 +149,9 @@ export function runBatch(input: BatchInput): BatchOutput {
     );
     const strategies = buildStrategies(initial, strategySeed);
     const inputProvider = makeInputProvider(strategies);
+    const soloTeams = listAllTeams(initial)
+      .filter((team) => team.players.length === 1)
+      .map((team) => team.teamNumber);
 
     let current = initial;
     let rounds = 0;
@@ -169,6 +178,7 @@ export function runBatch(input: BatchInput): BatchOutput {
       survivingTeams,
       totalDamageDealt,
       graveyardSize: current.graveyard?.length ?? 0,
+      soloTeams,
     });
   }
 
