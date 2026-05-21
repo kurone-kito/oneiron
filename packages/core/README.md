@@ -16,6 +16,29 @@ web-based simulator.
 
 Scaffold only — rule-engine code is added by follow-up issues.
 
+## Build & consumption
+
+`@kurone-kito/oneiron-core` is published as **compiled JavaScript**
+(`dist/`). Workspace siblings (`@kurone-kito/oneiron-web`,
+`@kurone-kito/oneiron-cli`) and external `node_modules` consumers
+both go through the same `exports` map.
+
+- **Build**: `pnpm --filter @kurone-kito/oneiron-core run build`
+  (runs `tsc -p tsconfig.build.json` → emits to `dist/`).
+- **`prepare` hook**: `pnpm install` automatically builds the
+  package, so downstream packages can always import from `dist`.
+- **Active core development**: re-run the build after editing
+  source so `dist/` reflects your changes
+  (`pnpm -F @kurone-kito/oneiron-core run build`). Vitest tests
+  inside `packages/core` use the source directly via relative
+  paths, so they do not require a fresh build.
+- **Clean**: `pnpm -F @kurone-kito/oneiron-core run clean`
+  removes `dist/`.
+
+`exports` resolves to `./dist/index.js` (runtime) and
+`./dist/index.d.ts` (types). The source tree under `./src/` is
+included in `files` for source-map debugging.
+
 ## License
 
 [MIT](../../LICENSE)
