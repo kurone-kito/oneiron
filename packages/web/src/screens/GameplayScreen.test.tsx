@@ -100,6 +100,43 @@ describe('GameplayScreen', () => {
     expect(screen.queryByLabelText(/phase input/i)).toBeNull();
   });
 
+  it('populates the turn log after the user submits a battle round', () => {
+    const teamA = makeTeam({
+      id: 1 as TeamId,
+      position: { x: 'fire', y: 'water' },
+      life: 3,
+      cards: [wood1],
+      gridCards: [fire5, water3],
+    });
+    const teamB = makeTeam({
+      id: 2 as TeamId,
+      position: { x: 'fire', y: 'water' },
+      life: 3,
+      cards: [wood4],
+      gridCards: [wood1, wood4],
+    });
+    const initial = stateWith([teamA, teamB]);
+    const controls = new Map<TeamId, TeamControl>([
+      [1 as TeamId, { type: 'human' }],
+      [2 as TeamId, { type: 'human' }],
+    ]);
+    render(() => (
+      <GameplayScreen
+        initialState={initial}
+        config={{ controls, gameConfig: DEFAULT_CONFIG }}
+      />
+    ));
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Submit battle plays' }),
+    );
+    const turnLog = screen.getByLabelText('Turn log');
+    // After one battle resolution + revival, the log should hold at
+    // least the battle outcome line.
+    expect(turnLog.textContent ?? '').toMatch(
+      /Team \d+ (hit Team \d+|drew with Team \d+)/,
+    );
+  });
+
   it('pauses for human battle play and advances the round on submit', () => {
     // Two-team battle on the same cell, both human, both have no cards
     // → forfeit. After both submit, the draw advances to the next round
