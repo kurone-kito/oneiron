@@ -13,6 +13,9 @@ Options:
   -v, --version  Show the CLI package version`;
 
 const READY_TEXT = 'oneiron-cli ready';
+const FALLBACK_VERSION = '0.0.0';
+const SAFE_VERSION_PATTERN =
+  /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/;
 
 const options = {
   help: {
@@ -29,8 +32,21 @@ const readPackageVersion = async (): Promise<string> => {
   const packageUrl = new URL('../package.json', import.meta.url);
   const packageJson = await readFile(packageUrl, 'utf8');
   const parsedPackage = JSON.parse(packageJson) as { version?: string };
+  const rawVersion = parsedPackage.version;
 
-  return parsedPackage.version ?? '0.0.0';
+  if (typeof rawVersion !== 'string') {
+    return FALLBACK_VERSION;
+  }
+
+  const sanitizedVersion = [...rawVersion]
+    .filter((character) => character >= ' ' && character !== '\u007f')
+    .join('');
+
+  if (!SAFE_VERSION_PATTERN.test(sanitizedVersion)) {
+    return FALLBACK_VERSION;
+  }
+
+  return sanitizedVersion;
 };
 
 const readErrorMessage = (error: unknown): string => {
