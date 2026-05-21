@@ -18,10 +18,8 @@ import {
   deriveSetupConfigLimits,
   deriveTeamSummaries,
   MAX_PLAYER_COUNT,
-  MAX_SETUP_SEED,
   MAX_STARTABLE_PLAYER_COUNT,
   MIN_PLAYER_COUNT,
-  MIN_SETUP_SEED,
   normalizeSeed,
   normalizeSetupConfig,
   type SetupValues,
@@ -95,6 +93,7 @@ export function SetupScreen(props: Props) {
     if (value.trim() === '') {
       return Number.NaN;
     }
+    // `Number(...)` intentionally accepts signed and scientific-notation drafts.
     return Number(value);
   }
 
@@ -182,10 +181,8 @@ export function SetupScreen(props: Props) {
           <div>
             <input
               id="seed"
-              type="number"
-              min={MIN_SETUP_SEED}
-              max={MAX_SETUP_SEED}
-              step="1"
+              type="text"
+              inputMode="numeric"
               value={seedText()}
               onInput={(event) => setSeedText(event.currentTarget.value)}
               onBlur={commitSeedText}

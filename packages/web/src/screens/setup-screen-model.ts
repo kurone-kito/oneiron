@@ -202,6 +202,7 @@ export function buildControlsMap(
 ): Map<TeamId, TeamControl> {
   return new Map(
     teams.map((team) => {
+      // Defensive fallback in case a caller bypasses buildControlSelections().
       const mode =
         selections[team.teamId] ?? (team.teamId === 1 ? 'human' : 'bot');
       return [

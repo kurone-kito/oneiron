@@ -49,6 +49,22 @@ describe('SetupScreen', () => {
     expect(Number(seedInput.value)).toBe(4242);
   });
 
+  it('preserves intermediate seed drafts until blur and then normalizes them', () => {
+    vi.spyOn(Date, 'now').mockReturnValue(4242);
+    render(() => <SetupScreen onStart={() => undefined} />);
+
+    const seedInput = screen.getByLabelText('Seed') as HTMLInputElement;
+    expect(seedInput.type).toBe('text');
+
+    fireEvent.input(seedInput, { target: { value: '-' } });
+
+    expect(seedInput.value).toBe('-');
+
+    fireEvent.blur(seedInput);
+
+    expect(seedInput.value).toBe('4242');
+  });
+
   it('fires start game with constructed setup values', () => {
     const onStart = vi.fn();
     render(() => <SetupScreen onStart={onStart} />);
