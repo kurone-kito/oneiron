@@ -1,3 +1,6 @@
+import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { runCli } from './cli.ts';
 
@@ -34,7 +37,7 @@ describe('runCli', () => {
   });
 
   describe('batch subcommand', () => {
-    it('prints JSON with one outcome per game on success', async () => {
+    it('prints JSON with summary and outcomes on success', async () => {
       const code = await runCli([
         'batch',
         '--player-count',
@@ -48,9 +51,11 @@ describe('runCli', () => {
       expect(stdout).toHaveLength(1);
       const parsed = JSON.parse(stdout[0] ?? '') as {
         outcomes: readonly { seed: number }[];
+        summary: { games: number };
       };
       expect(parsed.outcomes).toHaveLength(3);
       expect(parsed.outcomes.map((o) => o.seed)).toEqual([1, 2, 3]);
+      expect(parsed.summary.games).toBe(3);
     });
 
     it('produces identical JSON across runs with the same flags', async () => {
@@ -97,6 +102,83 @@ describe('runCli', () => {
       ]);
       expect(code).toBe(1);
       expect(stderr.join('\n')).toContain('Invalid integer');
+    });
+
+    it('emits CSV with --format csv', async () => {
+      const code = await runCli([
+        'batch',
+        '--player-count',
+        '4',
+        '--games',
+        '2',
+        '--seed-start',
+        '1',
+        '--format',
+        'csv',
+      ]);
+      expect(code).toBe(0);
+      const out = stdout[0] ?? '';
+      expect(out.split('\n')[0]).toBe(
+        'seed,winner,rounds,survivingTeams,totalDamageDealt,graveyardSize,soloTeams',
+      );
+      expect(out.split('\n')).toHaveLength(3);
+    });
+
+    it('emits Markdown with --format markdown', async () => {
+      const code = await runCli([
+        'batch',
+        '--player-count',
+        '4',
+        '--games',
+        '2',
+        '--seed-start',
+        '1',
+        '--format',
+        'markdown',
+      ]);
+      expect(code).toBe(0);
+      const out = stdout[0] ?? '';
+      expect(out).toContain('# Batch summary');
+      expect(out).toContain('## Win rates by team number');
+    });
+
+    it('rejects unknown --format values', async () => {
+      const code = await runCli([
+        'batch',
+        '--player-count',
+        '4',
+        '--games',
+        '1',
+        '--format',
+        'xml',
+      ]);
+      expect(code).toBe(1);
+      expect(stderr.join('\n')).toContain('--format');
+    });
+
+    it('writes to --output path instead of stdout', async () => {
+      const dir = await mkdtemp(join(tmpdir(), 'oneiron-batch-'));
+      const file = join(dir, 'report.json');
+      try {
+        const code = await runCli([
+          'batch',
+          '--player-count',
+          '4',
+          '--games',
+          '2',
+          '--seed-start',
+          '1',
+          '--output',
+          file,
+        ]);
+        expect(code).toBe(0);
+        expect(stdout).toHaveLength(0);
+        const contents = await readFile(file, 'utf8');
+        const parsed = JSON.parse(contents) as { outcomes: unknown[] };
+        expect(parsed.outcomes).toHaveLength(2);
+      } finally {
+        await rm(dir, { recursive: true, force: true });
+      }
     });
   });
 });

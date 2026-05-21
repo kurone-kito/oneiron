@@ -28,6 +28,11 @@ declare module 'node:fs/promises' {
     path: string | URL,
     encoding: string,
   ): Promise<string>;
+  export function writeFile(
+    path: string | URL,
+    data: string,
+    encoding: string,
+  ): Promise<void>;
 }
 
 declare module 'node:util' {
