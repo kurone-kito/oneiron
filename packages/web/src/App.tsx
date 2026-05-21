@@ -94,7 +94,9 @@ export function App() {
 
   function handleStart(values: SetupValues) {
     if (!isValidSetupValues(values)) {
-      console.warn('Rejected invalid setup values.', values);
+      // Defence-in-depth: SetupScreen guards this path via startBlocked(),
+      // but log an error so regressions are immediately diagnosable.
+      console.error('[App] handleStart received invalid setup values', values);
       return;
     }
 
