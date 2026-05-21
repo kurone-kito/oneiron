@@ -231,11 +231,14 @@ export function createSession(
       plays.push({ teamId, card: battle.card });
     }
 
-    current = {
-      ...resolveBattlePhase(current, plays, config.gameConfig ?? DEFAULT_CONFIG)
-        .state,
-      phase: 'forbidden',
-    };
+    const resolved = resolveBattlePhase(
+      current,
+      plays,
+      config.gameConfig ?? DEFAULT_CONFIG,
+    );
+    current = isGameOver(resolved.state)
+      ? resolved.state
+      : { ...resolved.state, phase: 'forbidden' };
   }
 
   function prepareMovement(): readonly TeamId[] {
@@ -309,7 +312,12 @@ export function createSession(
       });
     }
 
-    const resolved = resolveMovementChoices(current, movementChoices);
+    const resolved = resolveMovementChoices(
+      current,
+      movementChoices,
+      undefined,
+      { invalidExplicitChoice: 'skip' },
+    );
     current = advanceMovement(
       resolved.state,
       pendingMovementAttribute,

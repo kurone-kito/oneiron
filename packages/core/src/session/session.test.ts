@@ -616,6 +616,59 @@ describe('createSession', () => {
     expect(humanTeam?.facing).toBe('north');
   });
 
+  it('keeps the battle phase when the game ends during battle resolution', () => {
+    const decisiveStrategy: TeamStrategy = {
+      chooseBattlePlay(state, teamId) {
+        const team = findTeam(state, teamId);
+        return { card: team?.cards[0] ?? null };
+      },
+      chooseTeamMove() {
+        return null;
+      },
+      chooseRevivalAction() {
+        return null;
+      },
+    };
+    const state = stateWith({
+      teams: [
+        makeTeam({
+          id: 1 as NumberToken,
+          position: fireFire,
+          life: 4,
+          cards: [fire5],
+          gridCards: [wood1, water3],
+        }),
+        makeTeam({
+          id: 2 as NumberToken,
+          position: fireFire,
+          life: 1,
+          cards: [wood1],
+          gridCards: [fire1, wood4],
+        }),
+      ],
+      deck: [water1, fire1, fire5],
+    });
+    const session = createSession(state, {
+      controls: new Map([
+        [
+          1 as NumberToken,
+          { type: 'bot' as const, strategy: decisiveStrategy },
+        ],
+        [
+          2 as NumberToken,
+          { type: 'bot' as const, strategy: decisiveStrategy },
+        ],
+      ]),
+    });
+
+    const done = session.step();
+
+    expect(done.status).toBe('done');
+    expect(isGameOver(done.state)).toBe(true);
+    expect(done.state.phase).toBe('battle');
+    expect(done.state.forbiddenCells).toEqual([]);
+  });
+
   it('treats missing controls as human without throwing', () => {
     const state = stateWith({
       teams: [

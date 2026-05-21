@@ -26,6 +26,10 @@ export type MovementChoice =
   | EmergencyDrawMovementChoice;
 
 type MovementEventLogger = (message: string) => void;
+type InvalidExplicitChoicePolicy = 'skip' | 'throw';
+type ResolveMovementOptions = {
+  readonly invalidExplicitChoice?: InvalidExplicitChoicePolicy;
+};
 
 /**
  * Phase-draw Joker fallback: forbidden-cell coordinates and the
@@ -94,11 +98,18 @@ export function coerceToElementCard(card: Card): ElementCard {
   return isElementCard(card) ? card : JOKER_FORBIDDEN_FALLBACK;
 }
 
-function hasMatchingCard(hand: readonly Card[], target: Card): boolean {
+function describeCard(card: Card): string {
+  return card.kind === 'joker' ? 'Joker' : `${card.element} ${card.value}`;
+}
+
+function findMatchingCard(
+  hand: readonly Card[],
+  target: Card,
+): Card | undefined {
   if (target.kind === 'joker') {
-    return hand.some((card) => card.kind === 'joker');
+    return hand.find((card) => card.kind === 'joker');
   }
-  return hand.some(
+  return hand.find(
     (card) =>
       card.kind === 'element' &&
       card.element === target.element &&
@@ -110,6 +121,7 @@ export function resolveMovementChoices(
   state: RoundState,
   movementChoices: readonly MovementChoice[],
   onEvent?: MovementEventLogger,
+  options: ResolveMovementOptions = {},
 ): { state: RoundState; teamMoves: readonly TeamMove[] } {
   let next = state;
   const resolvedMoves: TeamMove[] = [];
@@ -197,13 +209,19 @@ export function resolveMovementChoices(
       continue;
     }
 
-    if (!hasMatchingCard(team.cards, choice.card)) {
-      continue;
+    const matchedCard = findMatchingCard(team.cards, choice.card);
+    if (matchedCard === undefined) {
+      if ((options.invalidExplicitChoice ?? 'throw') === 'skip') {
+        continue;
+      }
+      throw new RangeError(
+        `Team ${teamId} cannot play ${describeCard(choice.card)} for movement: not in hand.`,
+      );
     }
 
     resolvedMoves.push({
       teamId,
-      card: choice.card,
+      card: matchedCard,
       intendedFacing: choice.intendedFacing,
       ...(choice.gridSwapIndex !== undefined
         ? { gridSwapIndex: choice.gridSwapIndex }
