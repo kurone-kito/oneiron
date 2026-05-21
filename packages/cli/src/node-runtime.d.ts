@@ -37,12 +37,12 @@ declare module 'node:util' {
       string,
       {
         short?: string;
-        type: 'boolean';
+        type: 'boolean' | 'string';
       }
     >;
     allowPositionals?: boolean;
   }): {
-    values: Record<string, boolean | undefined>;
+    values: Record<string, boolean | string | undefined>;
     positionals: string[];
   };
 }
