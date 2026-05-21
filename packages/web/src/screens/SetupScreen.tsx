@@ -52,8 +52,10 @@ function updateInteger(
 }
 
 export function SetupScreen(props: Props) {
+  const initialSeed = createRandomSeed();
   const [playerCount, setPlayerCount] = createSignal(6);
-  const [seed, setSeed] = createSignal(createRandomSeed());
+  const [seed, setSeed] = createSignal(initialSeed);
+  const [seedText, setSeedText] = createSignal(String(initialSeed));
   const [config, setConfig] = createStore<ConfigDraft>(
     cloneConfig(DEFAULT_CONFIG),
   );
@@ -78,10 +80,30 @@ export function SetupScreen(props: Props) {
   });
 
   createEffect(() => {
+    const count = playerCount();
     setConfig(
-      reconcile(normalizeSetupConfig(cloneConfig(config), playerCount())),
+      reconcile(
+        normalizeSetupConfig(
+          untrack(() => cloneConfig(config)),
+          count,
+        ),
+      ),
     );
   });
+
+  function parseSeedText(value: string): number {
+    if (value.trim() === '') {
+      return Number.NaN;
+    }
+    return Number(value);
+  }
+
+  function commitSeedText(): number {
+    const normalizedSeed = normalizeSeed(parseSeedText(seedText()), seed());
+    setSeed(normalizedSeed);
+    setSeedText(String(normalizedSeed));
+    return normalizedSeed;
+  }
 
   function updateConfigField<Key extends keyof ConfigDraft>(
     key: Key,
@@ -104,7 +126,7 @@ export function SetupScreen(props: Props) {
     if (startBlocked()) {
       return;
     }
-    const normalizedSeed = normalizeSeed(seed(), seed());
+    const normalizedSeed = commitSeedText();
     const normalizedConfig = normalizeSetupConfig(
       cloneConfig(config),
       playerCount(),
@@ -164,16 +186,17 @@ export function SetupScreen(props: Props) {
               min={MIN_SETUP_SEED}
               max={MAX_SETUP_SEED}
               step="1"
-              value={seed()}
-              onInput={(event) =>
-                setSeed(
-                  normalizeSeed(event.currentTarget.valueAsNumber, seed()),
-                )
-              }
+              value={seedText()}
+              onInput={(event) => setSeedText(event.currentTarget.value)}
+              onBlur={commitSeedText}
             />
             <button
               type="button"
-              onClick={() => setSeed(createRandomSeed())}
+              onClick={() => {
+                const nextSeed = createRandomSeed();
+                setSeed(nextSeed);
+                setSeedText(String(nextSeed));
+              }}
               aria-label="Randomise seed"
             >
               Randomise seed
@@ -192,7 +215,6 @@ export function SetupScreen(props: Props) {
                   </label>
                   <select
                     id={`team-control-${team.teamId}`}
-                    aria-label={`Control for Team ${team.teamId}`}
                     value={controlSelections[team.teamId] ?? 'bot'}
                     onChange={(event) =>
                       setControlSelections(
@@ -271,7 +293,6 @@ export function SetupScreen(props: Props) {
             id="config-d"
             type="number"
             min="1"
-            max={configLimits().battleTimeLimitMin}
             step="1"
             value={config.battleTimeLimitMin}
             onInput={(event) =>
@@ -287,7 +308,6 @@ export function SetupScreen(props: Props) {
             id="config-e"
             type="number"
             min="1"
-            max={configLimits().damageOverflowFactor}
             step="1"
             value={config.damageOverflowFactor}
             onInput={(event) =>

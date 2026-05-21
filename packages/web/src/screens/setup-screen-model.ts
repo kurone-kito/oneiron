@@ -28,6 +28,7 @@ const JOKER_COUNT = 2;
 const SETUP_ELEMENT_BUFFER = 2;
 const SETUP_JOKER_DRAW_COUNT = 1;
 const MAX_SAFE_SETUP_DECK_SIZE = 1024;
+const MAX_CONFIG_INTEGER = Number.MAX_SAFE_INTEGER;
 
 export const MIN_PLAYER_COUNT = 2;
 export const MAX_PLAYER_COUNT = 20;
@@ -39,7 +40,12 @@ export const MAX_CARD_COPIES = Math.floor(
     (ELEMENT_COUNT * ELEMENT_VALUES_PER_COPY),
 );
 
-export type SetupConfigLimits = Readonly<Record<keyof GameConfig, number>>;
+export type SetupConfigLimits = Readonly<
+  Pick<
+    Record<keyof GameConfig, number>,
+    'cardCopies' | 'deckExtractFactor' | 'randomCardsDealt'
+  >
+>;
 
 function clampInteger(
   value: number,
@@ -131,8 +137,6 @@ export function deriveSetupConfigLimits(
     cardCopies: MAX_CARD_COPIES,
     deckExtractFactor: maxDeckExtractFactor,
     randomCardsDealt: Math.max(0, Math.floor(remainingAfterSetup / teamCount)),
-    battleTimeLimitMin: MAX_SETUP_SEED,
-    damageOverflowFactor: MAX_SETUP_SEED,
   };
 }
 
@@ -167,13 +171,13 @@ export function normalizeSetupConfig(
     battleTimeLimitMin: clampInteger(
       config.battleTimeLimitMin,
       1,
-      limits.battleTimeLimitMin,
+      MAX_CONFIG_INTEGER,
       1,
     ),
     damageOverflowFactor: clampInteger(
       config.damageOverflowFactor,
       1,
-      limits.damageOverflowFactor,
+      MAX_CONFIG_INTEGER,
       1,
     ),
   };

@@ -80,10 +80,10 @@ describe('SetupScreen', () => {
     const onStart = vi.fn();
     render(() => <SetupScreen onStart={onStart} />);
 
-    fireEvent.change(screen.getByLabelText('Control for Team 1'), {
+    fireEvent.change(screen.getByLabelText('Team 1 (pair)'), {
       target: { value: 'bot' },
     });
-    fireEvent.change(screen.getByLabelText('Control for Team 2'), {
+    fireEvent.change(screen.getByLabelText('Team 2 (pair)'), {
       target: { value: 'human' },
     });
     fireEvent.input(screen.getByLabelText('Card copies (A)'), {
@@ -120,7 +120,7 @@ describe('SetupScreen', () => {
       target: { value: '18', valueAsNumber: 18 },
     });
     fireEvent.input(screen.getByLabelText('Seed'), {
-      target: { value: '1e309', valueAsNumber: Number.POSITIVE_INFINITY },
+      target: { value: '1e309' },
     });
     fireEvent.input(screen.getByLabelText('Card copies (A)'), {
       target: { value: '10000', valueAsNumber: 10_000 },

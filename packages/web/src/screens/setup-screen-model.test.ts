@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   clampPlayerCount,
+  createRandomSeed,
   deriveSetupConfigLimits,
   MAX_CARD_COPIES,
   MAX_SETUP_SEED,
@@ -27,6 +28,13 @@ describe('normalizeSeed', () => {
     expect(normalizeSeed(Number.NEGATIVE_INFINITY, 7)).toBe(7);
     expect(normalizeSeed(2 ** 40)).toBe(MAX_SETUP_SEED);
     expect(normalizeSeed(-(2 ** 40))).toBe(MIN_SETUP_SEED);
+  });
+});
+
+describe('createRandomSeed', () => {
+  it('maps zero and full-cycle timestamps to 1', () => {
+    expect(createRandomSeed(0)).toBe(1);
+    expect(createRandomSeed(2 ** 31)).toBe(1);
   });
 });
 
