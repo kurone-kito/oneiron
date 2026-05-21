@@ -2,6 +2,10 @@ import { DEFAULT_CONFIG } from '@kurone-kito/oneiron-core';
 import { cleanup, fireEvent, render, screen } from '@solidjs/testing-library';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { SetupScreen } from './SetupScreen.tsx';
+import {
+  deriveSetupConfigLimits,
+  MAX_CARD_COPIES,
+} from './setup-screen-model.ts';
 
 afterEach(() => {
   cleanup();
@@ -53,7 +57,7 @@ describe('SetupScreen', () => {
       target: { value: '4' },
     });
     fireEvent.input(screen.getByLabelText('Seed'), { target: { value: '77' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Start game' }));
+    fireEvent.submit(screen.getByRole('button', { name: 'Start game' }).form);
 
     expect(onStart).toHaveBeenCalledTimes(1);
     const [values] = onStart.mock.calls[0] as [unknown];
@@ -92,7 +96,7 @@ describe('SetupScreen', () => {
       target: { value: '3' },
     });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Start game' }));
+    fireEvent.submit(screen.getByRole('button', { name: 'Start game' }).form);
 
     const [values] = onStart.mock.calls[0] as [unknown];
     const setup = values as {
@@ -105,6 +109,42 @@ describe('SetupScreen', () => {
     expect(setup.config.damageOverflowFactor).toBe(3);
     expect(setup.controls.get(1)?.type).toBe('bot');
     expect(setup.controls.get(2)?.type).toBe('human');
+  });
+
+  it('normalizes non-finite seeds and oversized config overrides before submit', () => {
+    vi.spyOn(Date, 'now').mockReturnValue(4242);
+    const onStart = vi.fn();
+    render(() => <SetupScreen onStart={onStart} />);
+
+    fireEvent.input(screen.getByLabelText('Player count'), {
+      target: { value: '18', valueAsNumber: 18 },
+    });
+    fireEvent.input(screen.getByLabelText('Seed'), {
+      target: { value: '1e309', valueAsNumber: Number.POSITIVE_INFINITY },
+    });
+    fireEvent.input(screen.getByLabelText('Card copies (A)'), {
+      target: { value: '10000', valueAsNumber: 10_000 },
+    });
+    fireEvent.input(screen.getByLabelText('Deck extract factor (B)'), {
+      target: { value: '10000', valueAsNumber: 10_000 },
+    });
+    fireEvent.input(screen.getByLabelText('Random cards dealt (C)'), {
+      target: { value: '10000', valueAsNumber: 10_000 },
+    });
+
+    fireEvent.submit(screen.getByRole('button', { name: 'Start game' }).form);
+
+    const [values] = onStart.mock.calls[0] as [unknown];
+    const setup = values as {
+      seed: number;
+      config: typeof DEFAULT_CONFIG;
+    };
+    const limits = deriveSetupConfigLimits(18, setup.config);
+
+    expect(setup.seed).toBe(4242);
+    expect(setup.config.cardCopies).toBe(MAX_CARD_COPIES);
+    expect(setup.config.deckExtractFactor).toBe(limits.deckExtractFactor);
+    expect(setup.config.randomCardsDealt).toBe(limits.randomCardsDealt);
   });
 
   it('keeps the 2..20 input but blocks start above the engine team limit', () => {

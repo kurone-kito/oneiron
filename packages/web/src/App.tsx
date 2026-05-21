@@ -7,9 +7,12 @@ import { createSignal, For, Match, Switch } from 'solid-js';
 import { GameGrid } from './components/Grid.tsx';
 import { SetupScreen, type SetupValues } from './screens/SetupScreen.tsx';
 import {
+  cloneConfig,
   deriveTeamSummaries,
   MAX_STARTABLE_PLAYER_COUNT,
   MIN_PLAYER_COUNT,
+  normalizeSeed,
+  normalizeSetupConfig,
 } from './screens/setup-screen-model.ts';
 
 type PlayingState = {
@@ -27,13 +30,30 @@ function isNonNegativeInteger(value: number): boolean {
   return Number.isInteger(value) && value >= 0;
 }
 
+function isSameConfig(
+  left: SetupValues['config'],
+  right: SetupValues['config'],
+) {
+  return (
+    left.cardCopies === right.cardCopies &&
+    left.deckExtractFactor === right.deckExtractFactor &&
+    left.randomCardsDealt === right.randomCardsDealt &&
+    left.battleTimeLimitMin === right.battleTimeLimitMin &&
+    left.damageOverflowFactor === right.damageOverflowFactor
+  );
+}
+
 function isValidSetupValues(values: SetupValues): boolean {
+  const normalizedConfig = normalizeSetupConfig(
+    cloneConfig(values.config),
+    values.playerCount,
+  );
   if (
     !Number.isInteger(values.playerCount) ||
     values.playerCount < MIN_PLAYER_COUNT ||
     values.playerCount > MAX_STARTABLE_PLAYER_COUNT ||
-    !Number.isFinite(values.seed) ||
-    !Number.isInteger(values.seed)
+    !Number.isInteger(values.seed) ||
+    values.seed !== normalizeSeed(values.seed, values.seed)
   ) {
     return false;
   }
@@ -43,7 +63,8 @@ function isValidSetupValues(values: SetupValues): boolean {
     !isPositiveInteger(values.config.deckExtractFactor) ||
     !isNonNegativeInteger(values.config.randomCardsDealt) ||
     !isPositiveInteger(values.config.battleTimeLimitMin) ||
-    !isPositiveInteger(values.config.damageOverflowFactor)
+    !isPositiveInteger(values.config.damageOverflowFactor) ||
+    !isSameConfig(values.config, normalizedConfig)
   ) {
     return false;
   }

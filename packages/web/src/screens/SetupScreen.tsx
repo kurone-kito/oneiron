@@ -15,10 +15,15 @@ import {
   clampPlayerCount,
   cloneConfig,
   createRandomSeed,
+  deriveSetupConfigLimits,
   deriveTeamSummaries,
   MAX_PLAYER_COUNT,
+  MAX_SETUP_SEED,
   MAX_STARTABLE_PLAYER_COUNT,
   MIN_PLAYER_COUNT,
+  MIN_SETUP_SEED,
+  normalizeSeed,
+  normalizeSetupConfig,
   type SetupValues,
 } from './setup-screen-model.ts';
 
@@ -43,7 +48,7 @@ function updateInteger(
   fallback: number,
   normalize: (value: number) => number = Math.trunc,
 ): number {
-  return Number.isNaN(rawValue) ? fallback : normalize(rawValue);
+  return Number.isFinite(rawValue) ? normalize(rawValue) : fallback;
 }
 
 export function SetupScreen(props: Props) {
@@ -57,6 +62,9 @@ export function SetupScreen(props: Props) {
   >({});
 
   const teamSummaries = createMemo(() => deriveTeamSummaries(playerCount()));
+  const configLimits = createMemo(() =>
+    deriveSetupConfigLimits(playerCount(), config),
+  );
   const startBlocked = createMemo(
     () => playerCount() > MAX_STARTABLE_PLAYER_COUNT,
   );
@@ -69,17 +77,26 @@ export function SetupScreen(props: Props) {
     );
   });
 
+  createEffect(() => {
+    setConfig(
+      reconcile(normalizeSetupConfig(cloneConfig(config), playerCount())),
+    );
+  });
+
   function updateConfigField<Key extends keyof ConfigDraft>(
     key: Key,
     rawValue: number,
   ) {
-    const minimum = CONFIG_FIELD_MINIMUMS[key];
-    setConfig(
-      key,
-      updateInteger(rawValue, config[key], (value) =>
-        Math.max(minimum, Math.trunc(value)),
-      ),
+    const nextConfig = normalizeSetupConfig(
+      {
+        ...cloneConfig(config),
+        [key]: updateInteger(rawValue, config[key], (value) =>
+          Math.max(CONFIG_FIELD_MINIMUMS[key], Math.trunc(value)),
+        ),
+      },
+      playerCount(),
     );
+    setConfig(reconcile(nextConfig));
   }
 
   function handleSubmit(event: SubmitEvent) {
@@ -87,11 +104,20 @@ export function SetupScreen(props: Props) {
     if (startBlocked()) {
       return;
     }
+    const normalizedSeed = normalizeSeed(seed(), seed());
+    const normalizedConfig = normalizeSetupConfig(
+      cloneConfig(config),
+      playerCount(),
+    );
     props.onStart({
       playerCount: playerCount(),
-      seed: seed(),
-      config: cloneConfig(config),
-      controls: buildControlsMap(teamSummaries(), controlSelections, seed()),
+      seed: normalizedSeed,
+      config: normalizedConfig,
+      controls: buildControlsMap(
+        teamSummaries(),
+        controlSelections,
+        normalizedSeed,
+      ),
     });
   }
 
@@ -135,11 +161,13 @@ export function SetupScreen(props: Props) {
             <input
               id="seed"
               type="number"
+              min={MIN_SETUP_SEED}
+              max={MAX_SETUP_SEED}
               step="1"
               value={seed()}
               onInput={(event) =>
                 setSeed(
-                  updateInteger(event.currentTarget.valueAsNumber, seed()),
+                  normalizeSeed(event.currentTarget.valueAsNumber, seed()),
                 )
               }
             />
@@ -198,6 +226,7 @@ export function SetupScreen(props: Props) {
             id="config-a"
             type="number"
             min="1"
+            max={configLimits().cardCopies}
             step="1"
             value={config.cardCopies}
             onInput={(event) =>
@@ -210,6 +239,7 @@ export function SetupScreen(props: Props) {
             id="config-b"
             type="number"
             min="1"
+            max={configLimits().deckExtractFactor}
             step="1"
             value={config.deckExtractFactor}
             onInput={(event) =>
@@ -225,6 +255,7 @@ export function SetupScreen(props: Props) {
             id="config-c"
             type="number"
             min="0"
+            max={configLimits().randomCardsDealt}
             step="1"
             value={config.randomCardsDealt}
             onInput={(event) =>
@@ -240,6 +271,7 @@ export function SetupScreen(props: Props) {
             id="config-d"
             type="number"
             min="1"
+            max={configLimits().battleTimeLimitMin}
             step="1"
             value={config.battleTimeLimitMin}
             onInput={(event) =>
@@ -255,6 +287,7 @@ export function SetupScreen(props: Props) {
             id="config-e"
             type="number"
             min="1"
+            max={configLimits().damageOverflowFactor}
             step="1"
             value={config.damageOverflowFactor}
             onInput={(event) =>
