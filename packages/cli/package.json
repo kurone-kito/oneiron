@@ -11,6 +11,7 @@
     "oneiron"
   ],
   "homepage": "https://github.com/kurone-kito/oneiron#readme",
+  "bugs": "https://github.com/kurone-kito/oneiron/issues",
   "repository": {
     "type": "git",
     "url": "https://github.com/kurone-kito/oneiron.git",
