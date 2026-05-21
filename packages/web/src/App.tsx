@@ -94,6 +94,9 @@ export function App() {
 
   function handleStart(values: SetupValues) {
     if (!isValidSetupValues(values)) {
+      // Defence-in-depth: SetupScreen guards this path via startBlocked(),
+      // but log an error so regressions are immediately diagnosable.
+      console.error('[App] handleStart received invalid setup values', values);
       return;
     }
 
@@ -144,7 +147,7 @@ export function App() {
 
                 <GameGrid
                   grid={activeState.grid}
-                  forbiddenCells={[...activeState.forbiddenCells]}
+                  forbiddenCells={activeState.forbiddenCells}
                   currentPhase={activeState.phase}
                 />
 
