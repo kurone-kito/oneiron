@@ -72,9 +72,9 @@ export const runCli = async (
       allowPositionals: false,
     }));
   } catch (error) {
-    console.log(readErrorMessage(error));
-    console.log('');
-    console.log(HELP_TEXT);
+    console.error(readErrorMessage(error));
+    console.error('');
+    console.error(HELP_TEXT);
     return 1;
   }
 

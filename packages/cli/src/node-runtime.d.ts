@@ -9,6 +9,7 @@ declare class URL {
 }
 
 declare const console: {
+  error: (...data: unknown[]) => void;
   log: (...data: unknown[]) => void;
 };
 
