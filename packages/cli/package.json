@@ -1,0 +1,36 @@
+{
+  "name": "@kurone-kito/oneiron-cli",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Dream Duels: The Battle for Oneiron — headless CLI entrypoint.",
+  "keywords": [
+    "battle-royale",
+    "card-game",
+    "cli",
+    "dream-duels",
+    "oneiron"
+  ],
+  "homepage": "https://github.com/kurone-kito/oneiron#readme",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/kurone-kito/oneiron.git",
+    "directory": "packages/cli"
+  },
+  "license": "MIT",
+  "author": "kurone-kito <krone@kit.black> (https://kit.black/)",
+  "type": "module",
+  "bin": {
+    "oneiron": "./src/cli.ts"
+  },
+  "scripts": {
+    "start": "tsx src/cli.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@kurone-kito/oneiron-core": "workspace:*"
+  },
+  "devDependencies": {
+    "@kurone-kito/typescript-config": "^0.22.0-alpha.9",
+    "tsx": "^4.8.1"
+  }
+}
