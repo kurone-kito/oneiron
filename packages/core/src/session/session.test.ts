@@ -129,6 +129,47 @@ describe('createSession', () => {
     expect(step.state.phase).toBe('battle');
   });
 
+  it('keeps returning done after a round completes', () => {
+    const state = stateWith({
+      teams: [
+        makeTeam({
+          id: 1 as NumberToken,
+          position: fireFire,
+          facing: 'east',
+          cards: [fire5],
+          gridCards: [wood1, water3],
+        }),
+        makeTeam({
+          id: 2 as NumberToken,
+          position: woodWood,
+          cards: [wood1],
+          gridCards: [fire1, wood4],
+        }),
+      ],
+      deck: [water1, fire1, fire5, wood4, water3, joker],
+    });
+    const session = createSession(state, {
+      controls: new Map<
+        TeamId,
+        {
+          readonly type: 'bot';
+          readonly strategy: ReturnType<typeof randomStrategy>;
+        }
+      >([
+        [1 as NumberToken, { type: 'bot', strategy: randomStrategy(1) }],
+        [2 as NumberToken, { type: 'bot', strategy: randomStrategy(2) }],
+      ]),
+    });
+
+    const first = session.step();
+    const second = session.step();
+
+    expect(first.status).toBe('done');
+    expect(first.state.round).toBe(2);
+    expect(first.state.phase).toBe('battle');
+    expect(second).toEqual(first);
+  });
+
   it('resolves empty-hand bot fallback movement without awaiting humans', () => {
     const fallbackStrategy: TeamStrategy = {
       chooseBattlePlay() {
@@ -774,13 +815,15 @@ describe('createSession', () => {
         strategy: randomStrategy(team.teamNumber),
       });
     }
-    const session = createSession(initial, { controls });
+    let state = initial;
 
-    for (let i = 0; i < 100 && !isGameOver(session.state); i++) {
+    for (let i = 0; i < 100 && !isGameOver(state); i++) {
+      const session = createSession(state, { controls });
       const step = session.step();
       expect(step.status).toBe('done');
+      state = step.state;
     }
 
-    expect(isGameOver(session.state)).toBe(true);
+    expect(isGameOver(state)).toBe(true);
   });
 });

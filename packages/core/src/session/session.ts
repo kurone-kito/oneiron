@@ -209,6 +209,7 @@ export function createSession(
   readonly step: (humanInputs?: HumanInputs) => SessionStep;
 } {
   let current = initial;
+  let completed = false;
   let pendingRequest: HumanInputRequest | null = null;
   let pendingMovementAttribute: Element | null = null;
   let pendingPreparedBotMovementChoices: readonly MovementChoice[] = [];
@@ -374,7 +375,8 @@ export function createSession(
       return current;
     },
     step(humanInputs) {
-      if (isGameOver(current)) {
+      if (completed || isGameOver(current)) {
+        completed = true;
         return { status: 'done', state: current };
       }
 
@@ -428,6 +430,7 @@ export function createSession(
 
       while (true) {
         if (isGameOver(current)) {
+          completed = true;
           return { status: 'done', state: current };
         }
 
@@ -481,6 +484,7 @@ export function createSession(
               return awaiting({ phase: 'revival', humanTeams });
             }
             applyRevival(humanInputs?.revivalActions);
+            completed = true;
             return { status: 'done', state: current };
           }
         }
