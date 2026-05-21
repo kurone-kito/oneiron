@@ -16,11 +16,14 @@ const FACING_ARROW: Record<string, string> = {
 
 type Props = {
   grid: Grid;
-  forbiddenCells: GridCoord[];
+  forbiddenCells: readonly GridCoord[];
   currentPhase: RoundPhase;
 };
 
-function isForbidden(coord: GridCoord, forbidden: GridCoord[]): boolean {
+function isForbidden(
+  coord: GridCoord,
+  forbidden: readonly GridCoord[],
+): boolean {
   return forbidden.some((c) => c.x === coord.x && c.y === coord.y);
 }
 
