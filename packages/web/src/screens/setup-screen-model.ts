@@ -27,7 +27,9 @@ export const MAX_PLAYER_COUNT = 20;
 export const MAX_STARTABLE_PLAYER_COUNT = 18;
 
 export function clampPlayerCount(playerCount: number): number {
-  const normalized = Math.trunc(playerCount);
+  const normalized = Number.isFinite(playerCount)
+    ? Math.trunc(playerCount)
+    : MIN_PLAYER_COUNT;
   return Math.min(MAX_PLAYER_COUNT, Math.max(MIN_PLAYER_COUNT, normalized));
 }
 

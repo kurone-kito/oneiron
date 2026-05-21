@@ -6,7 +6,11 @@ import {
 import { createSignal, For, Match, Switch } from 'solid-js';
 import { GameGrid } from './components/Grid.tsx';
 import { SetupScreen, type SetupValues } from './screens/SetupScreen.tsx';
-import { MAX_STARTABLE_PLAYER_COUNT } from './screens/setup-screen-model.ts';
+import {
+  deriveTeamSummaries,
+  MAX_STARTABLE_PLAYER_COUNT,
+  MIN_PLAYER_COUNT,
+} from './screens/setup-screen-model.ts';
 
 type PlayingState = {
   readonly mode: 'playing';
@@ -15,13 +19,60 @@ type PlayingState = {
   readonly setup: SetupValues;
 };
 
+function isPositiveInteger(value: number): boolean {
+  return Number.isInteger(value) && value >= 1;
+}
+
+function isNonNegativeInteger(value: number): boolean {
+  return Number.isInteger(value) && value >= 0;
+}
+
+function isValidSetupValues(values: SetupValues): boolean {
+  if (
+    !Number.isInteger(values.playerCount) ||
+    values.playerCount < MIN_PLAYER_COUNT ||
+    values.playerCount > MAX_STARTABLE_PLAYER_COUNT ||
+    !Number.isFinite(values.seed) ||
+    !Number.isInteger(values.seed)
+  ) {
+    return false;
+  }
+
+  if (
+    !isPositiveInteger(values.config.cardCopies) ||
+    !isPositiveInteger(values.config.deckExtractFactor) ||
+    !isNonNegativeInteger(values.config.randomCardsDealt) ||
+    !isPositiveInteger(values.config.battleTimeLimitMin) ||
+    !isPositiveInteger(values.config.damageOverflowFactor)
+  ) {
+    return false;
+  }
+
+  if (!(values.controls instanceof Map)) {
+    return false;
+  }
+
+  const expectedTeams = deriveTeamSummaries(values.playerCount);
+  if (values.controls.size !== expectedTeams.length) {
+    return false;
+  }
+
+  return expectedTeams.every((team) => {
+    const control = values.controls.get(team.teamId);
+    return (
+      control?.type === 'human' ||
+      (control?.type === 'bot' && control.strategy !== undefined)
+    );
+  });
+}
+
 export function App() {
   const [view, setView] = createSignal<{ mode: 'setup' } | PlayingState>({
     mode: 'setup',
   });
 
   function handleStart(values: SetupValues) {
-    if (values.playerCount > MAX_STARTABLE_PLAYER_COUNT) {
+    if (!isValidSetupValues(values)) {
       return;
     }
 

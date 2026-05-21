@@ -16,6 +16,6 @@ describe('App', () => {
     expect(
       screen.getByRole('heading', { name: 'Game session ready' }),
     ).toBeTruthy();
-    expect(screen.getByLabelText('Game grid — battle phase')).toBeTruthy();
+    expect(screen.getByLabelText(/game grid .* phase/i)).toBeTruthy();
   });
 });

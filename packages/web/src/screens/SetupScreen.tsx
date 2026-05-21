@@ -16,7 +16,9 @@ import {
   cloneConfig,
   createRandomSeed,
   deriveTeamSummaries,
+  MAX_PLAYER_COUNT,
   MAX_STARTABLE_PLAYER_COUNT,
+  MIN_PLAYER_COUNT,
   type SetupValues,
 } from './setup-screen-model.ts';
 
@@ -82,6 +84,9 @@ export function SetupScreen(props: Props) {
 
   function handleSubmit(event: SubmitEvent) {
     event.preventDefault();
+    if (startBlocked()) {
+      return;
+    }
     props.onStart({
       playerCount: playerCount(),
       seed: seed(),
@@ -109,8 +114,8 @@ export function SetupScreen(props: Props) {
           <input
             id="player-count"
             type="number"
-            min="2"
-            max="20"
+            min={MIN_PLAYER_COUNT}
+            max={MAX_PLAYER_COUNT}
             step="1"
             value={playerCount()}
             onInput={(event) =>

@@ -108,7 +108,8 @@ describe('SetupScreen', () => {
   });
 
   it('keeps the 2..20 input but blocks start above the engine team limit', () => {
-    render(() => <SetupScreen onStart={() => undefined} />);
+    const onStart = vi.fn();
+    render(() => <SetupScreen onStart={onStart} />);
 
     fireEvent.input(screen.getByLabelText('Player count'), {
       target: { value: '20' },
@@ -124,5 +125,7 @@ describe('SetupScreen', () => {
         .disabled,
     ).toBe(true);
     expect(screen.getByText('Team 10 (pair)')).toBeTruthy();
+    fireEvent.submit(screen.getByRole('button', { name: 'Start game' }).form);
+    expect(onStart).not.toHaveBeenCalled();
   });
 });
