@@ -317,7 +317,7 @@ export function createSession(
       current,
       movementChoices,
       undefined,
-      { invalidExplicitChoice: 'skip' },
+      { skipInvalidExplicitChoiceTeamIds: new Set(humanTeams) },
     );
     current = advanceMovement(
       resolved.state,

@@ -657,6 +657,68 @@ describe('createSession', () => {
     expect(humanTeam?.facing).toBe('north');
   });
 
+  it('throws when a bot strategy returns an explicit movement card not in hand', () => {
+    const state = stateWith({
+      teams: [
+        makeTeam({
+          id: 1 as NumberToken,
+          position: fireFire,
+          cards: [water3],
+          gridCards: [wood1, fire1],
+        }),
+        makeTeam({
+          id: 2 as NumberToken,
+          position: woodWood,
+          cards: [wood4],
+          gridCards: [fire5, wood1],
+        }),
+      ],
+      deck: [water1, water1, fire1],
+    });
+    const invalidBotStrategy: TeamStrategy = {
+      chooseBattlePlay() {
+        return { card: null };
+      },
+      chooseTeamMove() {
+        return {
+          kind: 'explicit',
+          card: fire5,
+          intendedFacing: 'east',
+        };
+      },
+      chooseRevivalAction() {
+        return null;
+      },
+    };
+    const passiveBotStrategy: TeamStrategy = {
+      chooseBattlePlay() {
+        return { card: null };
+      },
+      chooseTeamMove() {
+        return null;
+      },
+      chooseRevivalAction() {
+        return null;
+      },
+    };
+    const session = createSession(state, {
+      controls: new Map([
+        [
+          1 as NumberToken,
+          { type: 'bot' as const, strategy: invalidBotStrategy },
+        ],
+        [
+          2 as NumberToken,
+          { type: 'bot' as const, strategy: passiveBotStrategy },
+        ],
+      ]),
+    });
+
+    expect(() => session.step()).toThrowError(
+      'Team 1 cannot play fire 5 for movement: not in hand.',
+    );
+  });
+
   it('keeps the battle phase when the game ends during battle resolution', () => {
     const decisiveStrategy: TeamStrategy = {
       chooseBattlePlay(state, teamId) {

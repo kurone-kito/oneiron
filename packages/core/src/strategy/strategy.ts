@@ -35,5 +35,4 @@ export type TeamStrategy = {
   ) => RevivalAction | null;
 };
 
-/** Returns the current team snapshot for a team id, if still on the board. */
 export { findTeam, isTeamAlive } from '../logic/phase-helpers.ts';

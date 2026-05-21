@@ -29,6 +29,7 @@ type MovementEventLogger = (message: string) => void;
 type InvalidExplicitChoicePolicy = 'skip' | 'throw';
 type ResolveMovementOptions = {
   readonly invalidExplicitChoice?: InvalidExplicitChoicePolicy;
+  readonly skipInvalidExplicitChoiceTeamIds?: ReadonlySet<TeamId>;
 };
 
 /**
@@ -36,7 +37,7 @@ type ResolveMovementOptions = {
  * movement attribute both require element cards, so v1 coerces any
  * joker draw to a deterministic fire attribute.
  */
-const JOKER_FORBIDDEN_FALLBACK: ElementCard = {
+const JOKER_ELEMENT_FALLBACK: ElementCard = {
   kind: 'element',
   element: 'fire',
   value: 1,
@@ -52,6 +53,7 @@ export function allTeams(state: RoundState): TeamState[] {
   return teams;
 }
 
+/** Returns the current team snapshot for a team id, if still on the board. */
 export function findTeam(
   state: RoundState,
   teamId: TeamId,
@@ -59,6 +61,7 @@ export function findTeam(
   return allTeams(state).find((team) => team.teamNumber === teamId);
 }
 
+/** Returns whether a team still has at least one living player. */
 export function isTeamAlive(team: TeamState): boolean {
   return team.players.some((player) => player.life > 0);
 }
@@ -95,7 +98,7 @@ export function drawFromDeck(
 }
 
 export function coerceToElementCard(card: Card): ElementCard {
-  return isElementCard(card) ? card : JOKER_FORBIDDEN_FALLBACK;
+  return isElementCard(card) ? card : JOKER_ELEMENT_FALLBACK;
 }
 
 function describeCard(card: Card): string {
@@ -211,7 +214,11 @@ export function resolveMovementChoices(
 
     const matchedCard = findMatchingCard(team.cards, choice.card);
     if (matchedCard === undefined) {
-      if ((options.invalidExplicitChoice ?? 'throw') === 'skip') {
+      const invalidExplicitChoicePolicy =
+        options.skipInvalidExplicitChoiceTeamIds?.has(teamId)
+          ? 'skip'
+          : (options.invalidExplicitChoice ?? 'throw');
+      if (invalidExplicitChoicePolicy === 'skip') {
         continue;
       }
       throw new RangeError(
