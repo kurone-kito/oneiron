@@ -1,4 +1,4 @@
-#!/usr/bin/env -S node --experimental-strip-types
+#!/usr/bin/env node
 
 import { readFile, writeFile } from 'node:fs/promises';
 import { pathToFileURL } from 'node:url';
