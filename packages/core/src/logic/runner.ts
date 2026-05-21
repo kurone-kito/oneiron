@@ -47,12 +47,30 @@ export type RoundOutput = {
   readonly log: readonly LogEntry[];
 };
 
-function battleLogMessage(result: BattleResult): string {
+export function battleLogMessage(result: BattleResult): string {
   if (result.winner === null) {
     return `Team ${result.teamA} drew with Team ${result.teamB} (${result.encounterType})`;
   }
   const loser = result.winner === result.teamA ? result.teamB : result.teamA;
   return `Team ${result.winner} hit Team ${loser} for ${result.damage} damage (${result.encounterType})`;
+}
+
+export function countDroppedTokenDelta(
+  before: RoundState,
+  after: RoundState,
+): number {
+  const tokensA = before.droppedLifeTokens;
+  const tokensB = after.droppedLifeTokens;
+  if (tokensA === undefined && tokensB === undefined) return 0;
+  let delta = 0;
+  for (const x of ['fire', 'water', 'wood'] as const) {
+    for (const y of ['fire', 'water', 'wood'] as const) {
+      const va = tokensA?.[x]?.[y] ?? 0;
+      const vb = tokensB?.[x]?.[y] ?? 0;
+      delta += vb - va;
+    }
+  }
+  return Math.max(0, delta);
 }
 
 /**
@@ -152,7 +170,7 @@ export function runRound(state: RoundState, inputs: RoundInputs): RoundOutput {
       phase: 'movement',
       message: `Movement resolution: ${resolvedMovement.teamMoves.length} moves resolved`,
     });
-    const movementPenalties = countTokenDelta(beforeMovement, next);
+    const movementPenalties = countDroppedTokenDelta(beforeMovement, next);
     if (movementPenalties > 0) {
       log.push({
         round,
@@ -176,21 +194,6 @@ export function runRound(state: RoundState, inputs: RoundInputs): RoundOutput {
   }
 
   return { state: next, battleResults, log };
-}
-
-function countTokenDelta(a: RoundState, b: RoundState): number {
-  const tokensA = a.droppedLifeTokens;
-  const tokensB = b.droppedLifeTokens;
-  if (tokensA === undefined && tokensB === undefined) return 0;
-  let delta = 0;
-  for (const x of ['fire', 'water', 'wood'] as const) {
-    for (const y of ['fire', 'water', 'wood'] as const) {
-      const va = tokensA?.[x]?.[y] ?? 0;
-      const vb = tokensB?.[x]?.[y] ?? 0;
-      delta += vb - va;
-    }
-  }
-  return Math.max(0, delta);
 }
 
 /** A function that supplies inputs for the next round given current state. */

@@ -49,6 +49,7 @@ const REVIVAL_ACTIONS: readonly RevivalAction['type'][] = [
 const MIN_AUTOPLAY_DELAY_MS = 0;
 const MAX_AUTOPLAY_DELAY_MS = 2000;
 const DEFAULT_AUTOPLAY_DELAY_MS = 200;
+const LOG_RETENTION = 500;
 
 function listLivingTeams(state: RoundState): TeamState[] {
   const teams: TeamState[] = [];
@@ -100,10 +101,7 @@ export function GameplayScreen(props: GameplayScreenProps) {
   ]);
   const [viewIndex, setViewIndex] = createSignal(0);
   const [pending, setPending] = createSignal<HumanInputRequest | null>(null);
-  // The session does not currently surface phase-by-phase log entries;
-  // the TurnLog renders an empty list until a logging hook is added in
-  // a follow-up issue.
-  const [log] = createSignal<readonly LogEntry[]>([]);
+  const [log, setLog] = createSignal<readonly LogEntry[]>([]);
   const [over, setOver] = createSignal(false);
 
   const [autoPlayActive, setAutoPlayActive] = createSignal(false);
@@ -193,6 +191,15 @@ export function GameplayScreen(props: GameplayScreenProps) {
   ): 'awaiting' | 'round-done' | 'game-over' {
     const result = session.step(humanInputs);
     pushState(result.state);
+    if (result.log.length > 0) {
+      setLog((prev) => {
+        const merged = [...prev, ...result.log];
+        // Cap retention so long auto-play sessions don't unbounded-grow.
+        return merged.length > LOG_RETENTION
+          ? merged.slice(merged.length - LOG_RETENTION)
+          : merged;
+      });
+    }
 
     if (result.status === 'awaiting') {
       setPending(result.request);

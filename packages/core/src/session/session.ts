@@ -20,9 +20,11 @@ import {
   type RoundState,
   type TeamMove,
 } from '../logic/round.ts';
+import { battleLogMessage, countDroppedTokenDelta } from '../logic/runner.ts';
 import type { TeamStrategy } from '../strategy/strategy.ts';
 import type { Card, Element } from '../types/card.ts';
 import type { TeamState } from '../types/grid.ts';
+import type { LogEntry } from '../types/log.ts';
 import type { TeamId } from '../types/token.ts';
 
 export type TeamControl =
@@ -54,8 +56,13 @@ export type SessionStep =
       readonly status: 'awaiting';
       readonly request: HumanInputRequest;
       readonly state: RoundState;
+      readonly log: readonly LogEntry[];
     }
-  | { readonly status: 'done'; readonly state: RoundState };
+  | {
+      readonly status: 'done';
+      readonly state: RoundState;
+      readonly log: readonly LogEntry[];
+    };
 
 const DEFAULT_HUMAN_CONTROL: TeamControl = { type: 'human' };
 function controlFor(
@@ -217,6 +224,7 @@ export function createSession(
 
   function applyBattle(
     battlePlays: ReadonlyMap<TeamId, BattlePlay> | undefined,
+    stepLog: LogEntry[],
   ): void {
     const plays: BattlePlay[] = [];
     for (const team of allTeams(current)) {
@@ -232,11 +240,19 @@ export function createSession(
       plays.push({ teamId, card: battle.card });
     }
 
+    const round = current.round;
     const resolved = resolveBattlePhase(
       current,
       plays,
       config.gameConfig ?? DEFAULT_CONFIG,
     );
+    for (const result of resolved.results) {
+      stepLog.push({
+        round,
+        phase: 'battle',
+        message: battleLogMessage(result),
+      });
+    }
     current = isGameOver(resolved.state)
       ? resolved.state
       : { ...resolved.state, phase: 'forbidden' };
@@ -276,6 +292,7 @@ export function createSession(
   function applyMovement(
     teamMoves: ReadonlyMap<TeamId, TeamMove> | undefined,
     humanTeams: readonly TeamId[],
+    stepLog: LogEntry[],
   ): void {
     if (pendingMovementAttribute === null) {
       throw new Error('Movement attribute missing while resolving movement.');
@@ -313,17 +330,34 @@ export function createSession(
       });
     }
 
+    const round = current.round;
     const resolved = resolveMovementChoices(
       current,
       movementChoices,
-      undefined,
+      (message) => {
+        stepLog.push({ round, phase: 'movement', message });
+      },
       { skipInvalidExplicitChoiceTeamIds: new Set(humanTeams) },
     );
+    const beforeMovement = resolved.state;
     current = advanceMovement(
-      resolved.state,
+      beforeMovement,
       pendingMovementAttribute,
       resolved.teamMoves,
     );
+    stepLog.push({
+      round,
+      phase: 'movement',
+      message: `Movement resolution: ${resolved.teamMoves.length} moves resolved`,
+    });
+    const movementPenalties = countDroppedTokenDelta(beforeMovement, current);
+    if (movementPenalties > 0) {
+      stepLog.push({
+        round,
+        phase: 'movement',
+        message: `Forbidden-cell penalty dropped ${movementPenalties} life token(s)`,
+      });
+    }
     pendingMovementAttribute = null;
     pendingPreparedBotMovementChoices = [];
     pendingPreparedBotMovementTeams = new Set<TeamId>();
@@ -331,6 +365,7 @@ export function createSession(
 
   function applyRevival(
     revivalActions: ReadonlyMap<TeamId, RevivalAction> | undefined,
+    stepLog: LogEntry[],
   ): void {
     const choices = new Map<TeamId, RevivalAction>();
     const eligibleHumanTeams = new Set(
@@ -354,7 +389,15 @@ export function createSession(
       choices.set(teamId, action);
     }
 
+    const round = current.round;
     current = advanceRevival(current, choices);
+    for (const [teamId, action] of choices) {
+      stepLog.push({
+        round,
+        phase: 'revival',
+        message: `Team ${teamId} chose ${action.type}`,
+      });
+    }
   }
 
   function teamControlStrategy(teamId: TeamId): TeamStrategy {
@@ -365,9 +408,12 @@ export function createSession(
     return control.strategy;
   }
 
-  function awaiting(request: HumanInputRequest): SessionStep {
+  function awaiting(
+    request: HumanInputRequest,
+    stepLog: readonly LogEntry[],
+  ): SessionStep {
     pendingRequest = request;
-    return { status: 'awaiting', request, state: current };
+    return { status: 'awaiting', request, state: current, log: stepLog };
   }
 
   return {
@@ -375,9 +421,10 @@ export function createSession(
       return current;
     },
     step(humanInputs) {
+      const stepLog: LogEntry[] = [];
       if (completed || isGameOver(current)) {
         completed = true;
-        return { status: 'done', state: current };
+        return { status: 'done', state: current, log: stepLog };
       }
 
       if (pendingRequest !== null) {
@@ -393,6 +440,7 @@ export function createSession(
                 status: 'awaiting',
                 request: pendingRequest,
                 state: current,
+                log: stepLog,
               };
             }
             break;
@@ -407,6 +455,7 @@ export function createSession(
                 status: 'awaiting',
                 request: pendingRequest,
                 state: current,
+                log: stepLog,
               };
             }
             break;
@@ -421,6 +470,7 @@ export function createSession(
                 status: 'awaiting',
                 request: pendingRequest,
                 state: current,
+                log: stepLog,
               };
             }
             break;
@@ -431,47 +481,76 @@ export function createSession(
       while (true) {
         if (isGameOver(current)) {
           completed = true;
-          return { status: 'done', state: current };
+          return { status: 'done', state: current, log: stepLog };
         }
 
         switch (current.phase) {
           case 'battle': {
             const humanTeams = humanBattleTeams(current, config.controls);
             if (!hasCompleteInputs(humanTeams, humanInputs?.battlePlays)) {
-              return awaiting({ phase: 'battle', humanTeams });
+              return awaiting({ phase: 'battle', humanTeams }, stepLog);
             }
-            applyBattle(humanInputs?.battlePlays);
+            applyBattle(humanInputs?.battlePlays, stepLog);
             humanInputs = undefined;
             continue;
           }
           case 'forbidden': {
+            const round = current.round;
             const forbiddenDraw = drawFromDeck(current.deck, 2);
             if (forbiddenDraw.drawn.length < 2) {
+              stepLog.push({
+                round,
+                phase: 'forbidden',
+                message: 'Deck exhausted: forbidden phase skipped',
+              });
               current = { ...current, phase: 'movement' };
               continue;
             }
+            const cardX = coerceToElementCard(forbiddenDraw.drawn[0] as Card);
+            const cardY = coerceToElementCard(forbiddenDraw.drawn[1] as Card);
             current = advanceForbidden(
               { ...current, deck: forbiddenDraw.remaining },
-              [
-                coerceToElementCard(forbiddenDraw.drawn[0] as Card),
-                coerceToElementCard(forbiddenDraw.drawn[1] as Card),
-              ],
+              [cardX, cardY],
             );
+            stepLog.push({
+              round,
+              phase: 'forbidden',
+              message: `New forbidden cell: (${cardX.element}, ${cardY.element})`,
+            });
             continue;
           }
           case 'movement': {
+            const round = current.round;
+            const justDrawingAttribute = pendingMovementAttribute === null;
             const humanTeams = prepareMovement();
             if (pendingMovementAttribute === null) {
+              if (justDrawingAttribute) {
+                stepLog.push({
+                  round,
+                  phase: 'movement',
+                  message: 'Deck exhausted: movement phase skipped',
+                });
+              }
               continue;
             }
-            if (!hasCompleteInputs(humanTeams, humanInputs?.teamMoves)) {
-              return awaiting({
+            if (justDrawingAttribute) {
+              stepLog.push({
+                round,
                 phase: 'movement',
-                humanTeams,
-                movementAttribute: pendingMovementAttribute,
+                message: `Movement attribute: ${pendingMovementAttribute}`,
               });
             }
-            applyMovement(humanInputs?.teamMoves, humanTeams);
+            if (!hasCompleteInputs(humanTeams, humanInputs?.teamMoves)) {
+              return awaiting(
+                {
+                  phase: 'movement',
+                  humanTeams,
+                  movementAttribute: pendingMovementAttribute,
+                },
+                stepLog,
+              );
+            }
+            applyMovement(humanInputs?.teamMoves, humanTeams, stepLog);
             humanInputs = undefined;
             continue;
           }
@@ -481,11 +560,11 @@ export function createSession(
               config.controls,
             );
             if (!hasCompleteInputs(humanTeams, humanInputs?.revivalActions)) {
-              return awaiting({ phase: 'revival', humanTeams });
+              return awaiting({ phase: 'revival', humanTeams }, stepLog);
             }
-            applyRevival(humanInputs?.revivalActions);
+            applyRevival(humanInputs?.revivalActions, stepLog);
             completed = true;
-            return { status: 'done', state: current };
+            return { status: 'done', state: current, log: stepLog };
           }
         }
       }

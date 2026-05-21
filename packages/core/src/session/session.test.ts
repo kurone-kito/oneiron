@@ -167,7 +167,11 @@ describe('createSession', () => {
     expect(first.status).toBe('done');
     expect(first.state.round).toBe(2);
     expect(first.state.phase).toBe('battle');
-    expect(second).toEqual(first);
+    // A second step on an already-completed round returns the same
+    // final state but emits no fresh log entries.
+    expect(second.status).toBe('done');
+    expect(second.state).toEqual(first.state);
+    expect(second.log).toEqual([]);
   });
 
   it('resolves empty-hand bot fallback movement without awaiting humans', () => {
@@ -858,8 +862,8 @@ describe('createSession', () => {
     const first = session.step();
     const second = session.step();
 
-    expect(first).toEqual({ status: 'done', state: state });
-    expect(second).toEqual({ status: 'done', state: state });
+    expect(first).toEqual({ status: 'done', state, log: [] });
+    expect(second).toEqual({ status: 'done', state, log: [] });
   });
 
   it('can drive a short multi-round all-bot smoke run to game over', () => {
@@ -887,5 +891,112 @@ describe('createSession', () => {
     }
 
     expect(isGameOver(state)).toBe(true);
+  });
+
+  it('emits per-phase log entries on each step', () => {
+    const initial = setupGame({ playerCount: 4, seed: 11 }, DEFAULT_CONFIG);
+    const controls = new Map<
+      TeamId,
+      {
+        readonly type: 'bot';
+        readonly strategy: ReturnType<typeof randomStrategy>;
+      }
+    >();
+    for (const team of allTeams(initial)) {
+      controls.set(team.teamNumber, {
+        type: 'bot',
+        strategy: randomStrategy(team.teamNumber + 10),
+      });
+    }
+
+    const session = createSession(initial, { controls });
+    const step = session.step();
+    expect(step.status).toBe('done');
+    expect(step.log.length).toBeGreaterThan(0);
+
+    const validPhases = new Set(['battle', 'forbidden', 'movement', 'revival']);
+    for (const entry of step.log) {
+      expect(entry.round).toBe(initial.round);
+      expect(validPhases.has(entry.phase)).toBe(true);
+      expect(typeof entry.message).toBe('string');
+      expect(entry.message.length).toBeGreaterThan(0);
+    }
+  });
+
+  it('emits the documented battle log message format', () => {
+    const initial = stateWith({
+      teams: [
+        makeTeam({
+          id: 1 as NumberToken,
+          position: fireFire,
+          life: 3,
+          cards: [fire5],
+        }),
+        makeTeam({
+          id: 2 as NumberToken,
+          position: fireFire,
+          life: 3,
+          cards: [water3],
+        }),
+      ],
+      // Empty deck → forbidden/movement skipped, revival has no
+      // drops, so only battle log entries fire this step.
+      deck: [],
+    });
+    const session = createSession(initial, { controls: new Map() });
+    const step = session.step({
+      battlePlays: new Map([
+        [1 as TeamId, { teamId: 1 as TeamId, card: fire5 }],
+        [2 as TeamId, { teamId: 2 as TeamId, card: water3 }],
+      ]),
+    });
+    const battleEntries = step.log.filter((e) => e.phase === 'battle');
+    expect(battleEntries.length).toBeGreaterThan(0);
+    expect(battleEntries[0]?.message).toMatch(
+      /^Team \d+ (hit Team \d+ for \d+ damage|drew with Team \d+) \(/,
+    );
+  });
+
+  it('emits revival log entries when human teams trigger revival actions', () => {
+    const droppedTokens = createEmptyDroppedTokens();
+    droppedTokens.fire.fire = 2;
+    const initial = stateWith({
+      teams: [
+        makeTeam({
+          id: 1 as NumberToken,
+          position: fireFire,
+          life: 2,
+          cards: [],
+        }),
+        // Second team keeps the game alive past phase 1 so the
+        // session reaches revival rather than declaring victory.
+        makeTeam({
+          id: 2 as NumberToken,
+          position: woodWood,
+          life: 3,
+          cards: [],
+        }),
+      ],
+      phase: 'revival',
+      droppedLifeTokens: droppedTokens,
+    });
+    const session = createSession(initial, {
+      controls: new Map([
+        [1 as TeamId, { type: 'human' as const }],
+        [2 as TeamId, { type: 'human' as const }],
+      ]),
+    });
+    // First step requests revival input from team 1 (team 2 has no
+    // dropped tokens on its cell so it is not eligible).
+    const awaiting = session.step();
+    expect(awaiting.status).toBe('awaiting');
+    const done = session.step({
+      revivalActions: new Map([[1 as TeamId, { type: 'charge-life' }]]),
+    });
+    expect(done.status).toBe('done');
+    const revivalEntries = done.log.filter((e) => e.phase === 'revival');
+    expect(revivalEntries.map((e) => e.message)).toContain(
+      'Team 1 chose charge-life',
+    );
   });
 });
