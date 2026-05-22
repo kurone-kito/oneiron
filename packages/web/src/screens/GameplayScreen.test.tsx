@@ -191,7 +191,11 @@ describe('GameplayScreen', () => {
     const initial = setupGame({ playerCount: 4, seed: 7 }, DEFAULT_CONFIG);
     const config = botConfigFor(initial, 50);
     render(() => <GameplayScreen initialState={initial} config={config} />);
-    // No auto-advance: history holds exactly the initial frame.
+    // History + auto-play live inside the off-canvas drawer; open
+    // it to read the frame counter and reach Play.
+    fireEvent.click(
+      screen.getByRole('button', { name: /Open auxiliary controls/i }),
+    );
     const historySection = screen.getByLabelText('State history');
     expect(historySection.textContent ?? '').toMatch(/Frame\s*1\s*\/\s*1/);
     expect(screen.getByRole('button', { name: 'Play' })).toBeTruthy();
@@ -203,6 +207,9 @@ describe('GameplayScreen', () => {
       const initial = setupGame({ playerCount: 4, seed: 11 }, DEFAULT_CONFIG);
       const config = botConfigFor(initial, 60);
       render(() => <GameplayScreen initialState={initial} config={config} />);
+      fireEvent.click(
+        screen.getByRole('button', { name: /Open auxiliary controls/i }),
+      );
       const play = screen.getByRole('button', { name: 'Play' });
       fireEvent.click(play);
       // Default delay is 200ms; flush a few ticks worth.
@@ -226,6 +233,9 @@ describe('GameplayScreen', () => {
       const initial = setupGame({ playerCount: 4, seed: 13 }, DEFAULT_CONFIG);
       const config = botConfigFor(initial, 80);
       render(() => <GameplayScreen initialState={initial} config={config} />);
+      fireEvent.click(
+        screen.getByRole('button', { name: /Open auxiliary controls/i }),
+      );
       fireEvent.click(screen.getByRole('button', { name: 'Play' }));
       await vi.advanceTimersByTimeAsync(800);
       fireEvent.click(screen.getByRole('button', { name: 'Pause' }));
@@ -270,12 +280,96 @@ describe('GameplayScreen', () => {
     ));
     expect(screen.getByLabelText(/phase input — battle/i)).toBeTruthy();
     // Step back into history — submit a turn first so there's a
-    // prior frame to revisit.
+    // prior frame to revisit. The Previous control lives in the
+    // off-canvas drawer; open it before clicking.
     fireEvent.click(
       screen.getByRole('button', { name: 'Submit battle plays' }),
+    );
+    fireEvent.click(
+      screen.getByRole('button', { name: /Open auxiliary controls/i }),
     );
     fireEvent.click(screen.getByRole('button', { name: /Previous/ }));
     expect(screen.queryByLabelText(/phase input — battle/i)).toBeNull();
     expect(screen.getByLabelText('History view banner')).toBeTruthy();
+  });
+
+  describe('mobile layout', () => {
+    function mixedConfig(): {
+      initial: ReturnType<typeof stateWith>;
+      controls: Map<TeamId, TeamControl>;
+    } {
+      const teamA = makeTeam({
+        id: 1 as TeamId,
+        position: { x: 'fire', y: 'water' },
+        life: 3,
+        cards: [wood1],
+      });
+      const teamB = makeTeam({
+        id: 2 as TeamId,
+        position: { x: 'fire', y: 'water' },
+        life: 3,
+        cards: [wood4],
+      });
+      const initial = stateWith([teamA, teamB]);
+      const controls = new Map<TeamId, TeamControl>([
+        [1 as TeamId, { type: 'human' }],
+        [2 as TeamId, { type: 'human' }],
+      ]);
+      return { initial, controls };
+    }
+
+    it('renders the phase input panel as a bottom-sheet dialog when awaiting', () => {
+      const { initial, controls } = mixedConfig();
+      render(() => (
+        <GameplayScreen
+          initialState={initial}
+          config={{ controls, gameConfig: DEFAULT_CONFIG }}
+        />
+      ));
+      const sheet = screen.getByLabelText(/phase input — battle/i);
+      expect(sheet.getAttribute('role')).toBe('dialog');
+      expect(sheet.className).toMatch(/gameplay-screen__sheet/);
+    });
+
+    it('opens and closes the auxiliary drawer via the hamburger button', () => {
+      const initial = setupGame({ playerCount: 4, seed: 21 }, DEFAULT_CONFIG);
+      const config = botConfigFor(initial, 200);
+      render(() => <GameplayScreen initialState={initial} config={config} />);
+      const opener = screen.getByRole('button', {
+        name: /Open auxiliary controls/i,
+      });
+      // Closed by default.
+      expect(opener.getAttribute('aria-expanded')).toBe('false');
+      expect(screen.queryByLabelText('Auxiliary controls')).toBeNull();
+      // Open.
+      fireEvent.click(opener);
+      expect(screen.getByLabelText('Auxiliary controls')).toBeTruthy();
+      expect(opener.getAttribute('aria-expanded')).toBe('true');
+      // Close via the in-drawer × button.
+      fireEvent.click(screen.getByRole('button', { name: 'Close' }));
+      expect(screen.queryByLabelText('Auxiliary controls')).toBeNull();
+    });
+
+    it('drives auto-play from inside the drawer', async () => {
+      vi.useFakeTimers();
+      try {
+        const initial = setupGame({ playerCount: 4, seed: 33 }, DEFAULT_CONFIG);
+        const config = botConfigFor(initial, 300);
+        render(() => <GameplayScreen initialState={initial} config={config} />);
+        fireEvent.click(
+          screen.getByRole('button', { name: /Open auxiliary controls/i }),
+        );
+        // Auto-play section is only visible to all-bot configs.
+        expect(screen.getByLabelText('Auto-play controls')).toBeTruthy();
+        fireEvent.click(screen.getByRole('button', { name: 'Play' }));
+        await vi.advanceTimersByTimeAsync(800);
+        const historySection = screen.getByLabelText('State history');
+        expect(historySection.textContent ?? '').not.toMatch(
+          /Frame\s*1\s*\/\s*1/,
+        );
+      } finally {
+        vi.useRealTimers();
+      }
+    });
   });
 });

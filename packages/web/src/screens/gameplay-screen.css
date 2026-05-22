@@ -1,0 +1,300 @@
+/*
+ * Mobile-first layout for GameplayScreen.
+ *
+ * Structure: a vertical scrollable main view (header → grid →
+ * team list → log) with a top-right hamburger that opens an
+ * off-canvas drawer carrying auxiliary controls (history +
+ * auto-play). The phase input is a sticky bottom sheet that
+ * slides in when the session emits an awaiting request and
+ * retracts when submission advances the phase or the game ends.
+ *
+ * Tap-targets respect --touch-min from tokens.css. The screen
+ * stays single-column on tablet/desktop, only growing the
+ * container width via the max-width cap.
+ */
+
+.gameplay-screen {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  max-width: min(720px, 100%);
+  margin: 0 auto;
+  padding: var(--space-3);
+  padding-bottom: calc(var(--space-7) + var(--touch-min) * 2);
+}
+
+.gameplay-screen__header {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  margin: 0;
+  padding-bottom: var(--space-2);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.gameplay-screen__header > h1 {
+  flex: 1 1 auto;
+  margin: 0;
+  font-size: var(--type-heading-2);
+}
+
+.gameplay-screen__header-meta {
+  margin: var(--space-1) 0 0;
+  font-size: var(--type-small);
+  color: var(--color-fg-muted);
+}
+
+.gameplay-screen__menu {
+  flex: 0 0 auto;
+  min-width: var(--touch-min);
+  min-height: var(--touch-min);
+  padding: var(--space-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-2);
+  background: var(--color-bg-elevated);
+  color: var(--color-fg);
+  font-size: var(--type-body);
+  cursor: pointer;
+}
+
+.gameplay-screen__menu:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+.gameplay-screen__teams {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.gameplay-screen__team {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-2);
+  background: var(--color-bg-elevated);
+}
+
+.gameplay-screen__team > header {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.gameplay-screen__team > header h3 {
+  margin: 0;
+  font-size: var(--type-heading-3);
+}
+
+.gameplay__grid-cards {
+  display: flex;
+  gap: var(--space-2);
+  margin: 0;
+  padding: var(--space-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-1);
+}
+
+.gameplay__grid-cards > legend {
+  padding: 0 var(--space-1);
+  font-size: var(--type-small);
+  color: var(--color-fg-muted);
+}
+
+/* --- Bottom-sheet phase input -------------------------------- */
+
+.gameplay-screen__sheet {
+  position: fixed;
+  inset: auto 0 0 0;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  max-height: 70vh;
+  padding: var(--space-4);
+  padding-bottom: calc(var(--space-4) + env(safe-area-inset-bottom, 0px));
+  background: var(--color-bg-elevated);
+  border-top: 1px solid var(--color-border);
+  border-radius: var(--radius-3) var(--radius-3) 0 0;
+  box-shadow: var(--shadow-2);
+  overflow-y: auto;
+}
+
+.gameplay-screen__sheet > h2 {
+  margin: 0;
+  font-size: var(--type-heading-3);
+}
+
+.gameplay-screen__sheet fieldset {
+  margin: 0;
+  padding: var(--space-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-1);
+}
+
+.gameplay-screen__sheet fieldset > legend {
+  font-size: var(--type-small);
+  color: var(--color-fg-muted);
+}
+
+.gameplay-screen__sheet label {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--touch-min);
+  padding: var(--space-1) 0;
+}
+
+.gameplay-screen__sheet input[type="radio"],
+.gameplay-screen__sheet select {
+  min-height: var(--touch-min);
+}
+
+.gameplay-screen__sheet > button[type="button"] {
+  min-height: var(--touch-min);
+  margin-top: var(--space-2);
+  padding: var(--space-3);
+  border: none;
+  border-radius: var(--radius-2);
+  background: var(--color-accent);
+  color: white;
+  font-size: var(--type-heading-3);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* --- Off-canvas drawer -------------------------------------- */
+
+.gameplay-screen__drawer-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  background: var(--color-scrim);
+}
+
+.gameplay-screen__drawer {
+  position: fixed;
+  inset: 0 0 0 auto;
+  z-index: 31;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  width: min(90vw, 320px);
+  padding: var(--space-4);
+  padding-top: calc(var(--space-4) + env(safe-area-inset-top, 0px));
+  background: var(--color-bg-elevated);
+  border-left: 1px solid var(--color-border);
+  box-shadow: var(--shadow-2);
+  overflow-y: auto;
+}
+
+.gameplay-screen__drawer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin: 0;
+  padding-bottom: var(--space-2);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.gameplay-screen__drawer-header h2 {
+  margin: 0;
+  font-size: var(--type-heading-2);
+}
+
+.gameplay-screen__drawer-close {
+  min-width: var(--touch-min);
+  min-height: var(--touch-min);
+  padding: var(--space-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-1);
+  background: var(--color-bg);
+  color: var(--color-fg);
+  cursor: pointer;
+}
+
+.gameplay-screen__drawer-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.gameplay-screen__drawer-section h3 {
+  margin: 0;
+  font-size: var(--type-heading-3);
+}
+
+.gameplay-screen__drawer-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.gameplay-screen__drawer-controls > button {
+  flex: 1 1 8rem;
+  min-height: var(--touch-min);
+  padding: var(--space-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-1);
+  background: var(--color-bg);
+  color: var(--color-fg);
+  font-size: var(--type-small);
+  cursor: pointer;
+}
+
+.gameplay-screen__drawer-controls > button:disabled {
+  background: var(--color-border);
+  color: var(--color-fg-muted);
+  cursor: not-allowed;
+}
+
+.gameplay-screen__drawer label {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  font-size: var(--type-small);
+  color: var(--color-fg-muted);
+}
+
+.gameplay-screen__drawer input[type="range"] {
+  width: 100%;
+  min-height: var(--touch-min);
+}
+
+/* --- History banner + game-over panel ------------------------ */
+
+.gameplay__history-banner {
+  margin: 0;
+  padding: var(--space-3);
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-1);
+  background: var(--color-bg);
+  font-size: var(--type-small);
+  color: var(--color-fg-muted);
+}
+
+.gameplay__game-over {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-4);
+  border: 2px solid var(--color-accent);
+  border-radius: var(--radius-2);
+  background: color-mix(
+    in srgb,
+    var(--color-accent) 8%,
+    var(--color-bg-elevated)
+  );
+}
+
+.gameplay__game-over h2 {
+  margin: 0;
+}
