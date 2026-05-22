@@ -1,5 +1,6 @@
 import { type RoundState, setupGame } from '@kurone-kito/oneiron-core';
 import { createSignal, Match, Switch } from 'solid-js';
+import { UpdatePrompt } from './components/UpdatePrompt.tsx';
 import { GameplayScreen } from './screens/GameplayScreen.tsx';
 import { SetupScreen, type SetupValues } from './screens/SetupScreen.tsx';
 import {
@@ -128,6 +129,7 @@ export function App() {
           })()}
         </Match>
       </Switch>
+      <UpdatePrompt />
     </main>
   );
 }
