@@ -109,6 +109,15 @@ export function GameplayScreen(props: GameplayScreenProps) {
     DEFAULT_AUTOPLAY_DELAY_MS,
   );
 
+  const [drawerOpen, setDrawerOpen] = createSignal(false);
+
+  function toggleDrawer(): void {
+    setDrawerOpen((open) => !open);
+  }
+  function closeDrawer(): void {
+    setDrawerOpen(false);
+  }
+
   const headState = createMemo(() => {
     const frames = history();
     return frames[frames.length - 1] as RoundState;
@@ -347,86 +356,28 @@ export function GameplayScreen(props: GameplayScreenProps) {
   }
 
   return (
-    <section aria-label="Gameplay screen">
-      <header class="gameplay__header">
-        <h1>Game session</h1>
-        <p>
-          Round <strong>{displayedState().round}</strong>, phase{' '}
-          <strong>{displayedState().phase}</strong>
-        </p>
-        <p>
-          Deck: <strong>{displayedState().deck?.length ?? 0}</strong> ·
-          Graveyard: <strong>{displayedState().graveyard?.length ?? 0}</strong>{' '}
-          · Forbidden cells:{' '}
-          <strong>{displayedState().forbiddenCells.length}</strong>
-        </p>
+    <section class="gameplay-screen" aria-label="Gameplay screen">
+      <header class="gameplay-screen__header">
+        <div>
+          <h1>Game session</h1>
+          <p class="gameplay-screen__header-meta">
+            Round <strong>{displayedState().round}</strong> · phase{' '}
+            <strong>{displayedState().phase}</strong> · deck{' '}
+            <strong>{displayedState().deck?.length ?? 0}</strong> · graveyard{' '}
+            <strong>{displayedState().graveyard?.length ?? 0}</strong> ·
+            forbidden <strong>{displayedState().forbiddenCells.length}</strong>
+          </p>
+        </div>
+        <button
+          type="button"
+          class="gameplay-screen__menu"
+          onClick={toggleDrawer}
+          aria-label="Open auxiliary controls"
+          aria-expanded={drawerOpen()}
+        >
+          ☰
+        </button>
       </header>
-
-      <section class="gameplay__history" aria-label="State history">
-        <h2>History</h2>
-        <p>
-          Frame <strong>{viewIndex() + 1}</strong> / {history().length}
-          <Show when={isViewingHistory()}>
-            {' '}
-            — <em>viewing history</em>
-          </Show>
-        </p>
-        <button type="button" onClick={goPrev} disabled={viewIndex() === 0}>
-          ← Previous
-        </button>
-        <button
-          type="button"
-          onClick={goNext}
-          disabled={viewIndex() >= history().length - 1}
-        >
-          Next →
-        </button>
-        <button
-          type="button"
-          onClick={goLive}
-          disabled={!isViewingHistory()}
-          aria-label="Jump to live"
-        >
-          Jump to live
-        </button>
-        <label>
-          Frame:
-          <input
-            type="range"
-            min="0"
-            max={history().length - 1}
-            value={viewIndex()}
-            onInput={(e) => jumpToFrame(Number(e.currentTarget.value))}
-            aria-label="History timeline"
-          />
-        </label>
-      </section>
-
-      <Show when={isAllBot()}>
-        <section class="gameplay__autoplay" aria-label="Auto-play controls">
-          <h2>Auto-play</h2>
-          <button
-            type="button"
-            onClick={toggleAutoPlay}
-            disabled={over() || isViewingHistory()}
-          >
-            {autoPlayActive() ? 'Pause' : 'Play'}
-          </button>
-          <label>
-            Delay (ms):
-            <input
-              type="range"
-              min={MIN_AUTOPLAY_DELAY_MS}
-              max={MAX_AUTOPLAY_DELAY_MS}
-              step="50"
-              value={autoPlayDelayMs()}
-              onInput={(e) => setAutoPlayDelayMs(Number(e.currentTarget.value))}
-              aria-label="Auto-play delay milliseconds"
-            />
-            <output>{autoPlayDelayMs()}</output>
-          </label>
-        </section>
-      </Show>
 
       <GameGrid
         grid={displayedState().grid}
@@ -434,42 +385,51 @@ export function GameplayScreen(props: GameplayScreenProps) {
         currentPhase={displayedState().phase}
       />
 
-      <section aria-label="Surviving teams">
+      <section
+        aria-label="Surviving teams"
+        class="gameplay-screen__teams-section"
+      >
         <h2>Teams</h2>
-        <For each={livingTeams()}>
-          {(team) => (
-            <article
-              class="gameplay__team"
-              aria-label={`Team ${team.teamNumber}`}
-            >
-              <header>
-                <h3>Team {team.teamNumber}</h3>
-                <p>
-                  Position: ({team.position.x}, {team.position.y}) · Facing:{' '}
-                  {team.facing} · Total life: {teamLife(team)}
-                </p>
-              </header>
-              <Show when={team.gridCards !== undefined}>
-                <fieldset class="gameplay__grid-cards">
-                  <legend>Grid cards</legend>
-                  <CardFace card={team.gridCards?.[0] as Card} />
-                  <CardFace card={team.gridCards?.[1] as Card} />
-                </fieldset>
-              </Show>
-              <Hand
-                cards={[...team.cards]}
-                label={`Team ${team.teamNumber} hand`}
-                faceUp={true}
-              />
-            </article>
-          )}
-        </For>
+        <ul class="gameplay-screen__teams">
+          <For each={livingTeams()}>
+            {(team) => (
+              <li>
+                <article
+                  class="gameplay-screen__team"
+                  aria-label={`Team ${team.teamNumber}`}
+                >
+                  <header>
+                    <h3>Team {team.teamNumber}</h3>
+                    <p>
+                      Position: ({team.position.x}, {team.position.y}) · Facing:{' '}
+                      {team.facing} · Total life: {teamLife(team)}
+                    </p>
+                  </header>
+                  <Show when={team.gridCards !== undefined}>
+                    <fieldset class="gameplay__grid-cards">
+                      <legend>Grid cards</legend>
+                      <CardFace card={team.gridCards?.[0] as Card} />
+                      <CardFace card={team.gridCards?.[1] as Card} />
+                    </fieldset>
+                  </Show>
+                  <Hand
+                    cards={[...team.cards]}
+                    label={`Team ${team.teamNumber} hand`}
+                    faceUp={true}
+                  />
+                </article>
+              </li>
+            )}
+          </For>
+        </ul>
       </section>
 
       <Show when={pending() !== null && !over() && !isViewingHistory()}>
         <section
-          class="gameplay__input"
+          class="gameplay__input gameplay-screen__sheet"
           aria-label={`Phase input — ${pending()?.phase}`}
+          role="dialog"
+          aria-modal="false"
         >
           <h2>Awaiting input — {pending()?.phase}</h2>
 
@@ -681,6 +641,110 @@ export function GameplayScreen(props: GameplayScreenProps) {
       </Show>
 
       <TurnLog entries={[...log()]} />
+
+      <Show when={drawerOpen()}>
+        <button
+          type="button"
+          class="gameplay-screen__drawer-scrim"
+          aria-label="Close auxiliary controls"
+          onClick={closeDrawer}
+        />
+        <aside class="gameplay-screen__drawer" aria-label="Auxiliary controls">
+          <header class="gameplay-screen__drawer-header">
+            <h2>Controls</h2>
+            <button
+              type="button"
+              class="gameplay-screen__drawer-close"
+              onClick={closeDrawer}
+              aria-label="Close"
+            >
+              ×
+            </button>
+          </header>
+
+          <section
+            class="gameplay-screen__drawer-section"
+            aria-label="State history"
+          >
+            <h3>History</h3>
+            <p>
+              Frame <strong>{viewIndex() + 1}</strong> / {history().length}
+              <Show when={isViewingHistory()}>
+                {' '}
+                — <em>viewing history</em>
+              </Show>
+            </p>
+            <div class="gameplay-screen__drawer-controls">
+              <button
+                type="button"
+                onClick={goPrev}
+                disabled={viewIndex() === 0}
+              >
+                ← Previous
+              </button>
+              <button
+                type="button"
+                onClick={goNext}
+                disabled={viewIndex() >= history().length - 1}
+              >
+                Next →
+              </button>
+              <button
+                type="button"
+                onClick={goLive}
+                disabled={!isViewingHistory()}
+                aria-label="Jump to live"
+              >
+                Jump to live
+              </button>
+            </div>
+            <label>
+              Frame:
+              <input
+                type="range"
+                min="0"
+                max={history().length - 1}
+                value={viewIndex()}
+                onInput={(e) => jumpToFrame(Number(e.currentTarget.value))}
+                aria-label="History timeline"
+              />
+            </label>
+          </section>
+
+          <Show when={isAllBot()}>
+            <section
+              class="gameplay-screen__drawer-section"
+              aria-label="Auto-play controls"
+            >
+              <h3>Auto-play</h3>
+              <div class="gameplay-screen__drawer-controls">
+                <button
+                  type="button"
+                  onClick={toggleAutoPlay}
+                  disabled={over() || isViewingHistory()}
+                >
+                  {autoPlayActive() ? 'Pause' : 'Play'}
+                </button>
+              </div>
+              <label>
+                Delay (ms):
+                <input
+                  type="range"
+                  min={MIN_AUTOPLAY_DELAY_MS}
+                  max={MAX_AUTOPLAY_DELAY_MS}
+                  step="50"
+                  value={autoPlayDelayMs()}
+                  onInput={(e) =>
+                    setAutoPlayDelayMs(Number(e.currentTarget.value))
+                  }
+                  aria-label="Auto-play delay milliseconds"
+                />
+                <output>{autoPlayDelayMs()}</output>
+              </label>
+            </section>
+          </Show>
+        </aside>
+      </Show>
     </section>
   );
 }
