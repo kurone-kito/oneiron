@@ -1,0 +1,134 @@
+/*
+ * Mobile-first design tokens + minimal global reset for
+ * @kurone-kito/oneiron-web.
+ *
+ * Token layers (all exposed as CSS custom properties on :root so
+ * any component can consume them):
+ *
+ *   --space-*        4 dp-based spacing scale (0–7).
+ *   --color-*        Neutral foreground/background plus the
+ *                    fire / water / wood element accents that
+ *                    CardFace currently inlines.
+ *   --type-*         Fluid type scale via clamp(); each size
+ *                    grows smoothly from 320 dp to ~768 dp so
+ *                    the default reads well without
+ *                    breakpoint-driven jumps.
+ *   --radius-*       Rounded-corner scale.
+ *   --shadow-*       Elevation scale (two stops, intentionally
+ *                    minimal).
+ *   --bp-*           Breakpoint cues. Components target
+ *                    --bp-tablet when the single-column
+ *                    skeleton should grow wider rather than
+ *                    fork into a new layout.
+ *   --touch-min      Minimum tap-target size (44 px) referenced
+ *                    by the leaf components.
+ *
+ * Tap-target guidance: any interactive element should respect
+ * min-height: var(--touch-min) and min-width: var(--touch-min).
+ *
+ * Layout guidance: the app stays single-column. Use --bp-tablet
+ * as a query cue when an element should *grow* on tablet/desktop
+ * (e.g., wider Hand strip, larger CardFace) — not as a trigger
+ * to fork into a desktop-only structure.
+ */
+
+:root {
+  /* Spacing — 4 dp base. */
+  --space-0: 0;
+  --space-1: 0.25rem; /* 4 px */
+  --space-2: 0.5rem; /* 8 px */
+  --space-3: 0.75rem; /* 12 px */
+  --space-4: 1rem; /* 16 px */
+  --space-5: 1.5rem; /* 24 px */
+  --space-6: 2rem; /* 32 px */
+  --space-7: 3rem; /* 48 px */
+
+  /* Neutral palette — light scheme; dark overrides below. */
+  --color-bg: #f6f7f9;
+  --color-bg-elevated: #ffffff;
+  --color-fg: #1d1f23;
+  --color-fg-muted: #555a62;
+  --color-border: #d6d9de;
+  --color-scrim: rgba(20, 22, 26, 0.36);
+
+  /* Element accents. Match the fire/water/wood semantic used
+   * across the rule engine. */
+  --color-fire: #d94236;
+  --color-water: #2b76d4;
+  --color-wood: #2f9e50;
+  --color-accent: var(--color-water);
+
+  /* Fluid type scale. Each clamp(min, fluid, max) uses vw so
+   * the size grows smoothly across the mobile band. */
+  --type-body: clamp(0.95rem, 0.9rem + 0.25vw, 1.05rem);
+  --type-small: clamp(0.8rem, 0.78rem + 0.1vw, 0.9rem);
+  --type-heading-3: clamp(1.05rem, 1rem + 0.5vw, 1.25rem);
+  --type-heading-2: clamp(1.2rem, 1.1rem + 0.8vw, 1.6rem);
+  --type-heading-1: clamp(1.4rem, 1.25rem + 1vw, 2rem);
+
+  /* Radii. */
+  --radius-1: 0.25rem;
+  --radius-2: 0.5rem;
+  --radius-3: 0.75rem;
+
+  /* Shadows — keep the surface flat by default. */
+  --shadow-1: 0 1px 2px rgba(20, 22, 26, 0.08);
+  --shadow-2: 0 4px 12px rgba(20, 22, 26, 0.16);
+
+  /* Breakpoints (used as cues for components that grow wider).
+   * Stored as raw values so JS can read them via
+   * getComputedStyle if needed; CSS @media queries reference
+   * the same numbers directly. */
+  --bp-tablet: 640px;
+  --bp-wide: 960px;
+
+  /* Touch-target minimum (Apple HIG / Material baseline). */
+  --touch-min: 44px;
+
+  color-scheme: light dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-bg: #14161a;
+    --color-bg-elevated: #1d2025;
+    --color-fg: #ecedf0;
+    --color-fg-muted: #a0a5ad;
+    --color-border: #2c3038;
+    --color-scrim: rgba(0, 0, 0, 0.5);
+  }
+}
+
+/* Minimal global reset. Intentionally light: we keep browser
+ * defaults for form elements, lists, etc., and only normalise
+ * what every layout in this app needs. */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  font-family:
+    system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial,
+    sans-serif;
+  font-size: var(--type-body);
+  line-height: 1.4;
+  background: var(--color-bg);
+  color: var(--color-fg);
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+}
+
+h1 {
+  font-size: var(--type-heading-1);
+}
+h2 {
+  font-size: var(--type-heading-2);
+}
+h3 {
+  font-size: var(--type-heading-3);
+}
