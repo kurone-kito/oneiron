@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <title>Dream Duels (maskable)</title>
+  <desc>Maskable variant: solid dark background fills the full canvas; the three element discs sit inside the safe zone (inner 80%) so the OS-applied mask never clips them.</desc>
+  <!-- Full-bleed background; OS supplies the final shape. -->
+  <rect width="512" height="512" fill="#14161a" />
+  <g transform="translate(256 256)">
+    <circle cx="0" cy="-80" r="68" fill="#d94236" />
+    <circle cx="-72" cy="40" r="68" fill="#2b76d4" />
+    <circle cx="72" cy="40" r="68" fill="#2f9e50" />
+  </g>
+</svg>
