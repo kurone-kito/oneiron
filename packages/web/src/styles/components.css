@@ -1,0 +1,237 @@
+/*
+ * Touch-friendly styles for the wave-8 leaf UI components.
+ * Each rule consumes the design tokens from tokens.css instead
+ * of re-inventing its own units. Anything interactive respects
+ * --touch-min (44 px) as a minimum hit area.
+ */
+
+/* --- GameGrid (Grid.tsx) -------------------------------------- */
+
+.game-grid {
+  width: 100%;
+}
+
+.game-grid__table {
+  /* Fixed layout keeps each cell at 1/3 of the table width so the
+   * 3x3 visual layout holds at 320 dp without horizontal overflow. */
+  table-layout: fixed;
+  width: 100%;
+  max-width: 100%;
+  border-collapse: collapse;
+  font-size: var(--type-small);
+}
+
+.game-grid__col-label,
+.game-grid__row-label {
+  padding: var(--space-1);
+  color: var(--color-fg-muted);
+  font-weight: 500;
+  text-align: center;
+  text-transform: capitalize;
+}
+
+.game-grid__corner {
+  width: 2rem;
+}
+
+.game-grid__cell {
+  aspect-ratio: 1;
+  min-width: var(--touch-min);
+  min-height: var(--touch-min);
+  padding: var(--space-1);
+  background: var(--color-bg-elevated);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-1);
+  vertical-align: top;
+}
+
+.game-grid__cell--forbidden {
+  background: color-mix(
+    in srgb,
+    var(--color-fire) 18%,
+    var(--color-bg-elevated)
+  );
+  border-color: var(--color-fire);
+}
+
+.grid-cell__team {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  margin: 0 var(--space-1) var(--space-1) 0;
+  padding: 2px var(--space-1);
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-1);
+  font-size: var(--type-small);
+  line-height: 1;
+}
+
+.grid-cell__token {
+  font-weight: 700;
+}
+
+.grid-cell__facing {
+  color: var(--color-fg-muted);
+}
+
+.grid-cell__life {
+  color: var(--color-fg-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* --- Hand ----------------------------------------------------- */
+
+.hand {
+  width: 100%;
+}
+
+.hand__label {
+  margin: 0 0 var(--space-1);
+  font-size: var(--type-small);
+  color: var(--color-fg-muted);
+}
+
+.hand__cards {
+  /* Horizontal-scroll list with snap. Long hands stay in a bounded
+   * row instead of pushing the layout wider than the viewport. */
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0 0 var(--space-1);
+  list-style: none;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: thin;
+  -webkit-overflow-scrolling: touch;
+}
+
+.hand__card {
+  flex: 0 0 auto;
+  min-width: var(--touch-min);
+  scroll-snap-align: start;
+}
+
+/* --- CardFace ------------------------------------------------- */
+
+.card {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1);
+  width: clamp(var(--touch-min), 14vw, 4rem);
+  aspect-ratio: 3 / 4;
+  padding: var(--space-2) var(--space-1);
+  background: var(--color-bg-elevated);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-2);
+  box-shadow: var(--shadow-1);
+  color: var(--color-fg);
+  font-size: var(--type-body);
+  user-select: none;
+}
+
+.card--fire {
+  border-color: var(--color-fire);
+}
+.card--water {
+  border-color: var(--color-water);
+}
+.card--wood {
+  border-color: var(--color-wood);
+}
+
+.card--joker {
+  border-color: var(--color-fg);
+  background: color-mix(in srgb, var(--color-fg) 4%, var(--color-bg-elevated));
+}
+
+.card--back {
+  background: var(--color-fg-muted);
+  color: var(--color-bg-elevated);
+}
+
+.card__symbol {
+  font-size: clamp(1.1rem, 4vw, 1.5rem);
+  line-height: 1;
+}
+
+.card__value {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.card__label {
+  font-size: var(--type-small);
+  color: var(--color-fg-muted);
+}
+
+/* --- TurnLog -------------------------------------------------- */
+
+.turn-log {
+  width: 100%;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-2);
+  background: var(--color-bg-elevated);
+}
+
+.turn-log__summary {
+  /* Native <summary> with the disclosure caret. Min height matches
+   * the touch-target token. */
+  display: list-item;
+  padding: var(--space-2) var(--space-3);
+  min-height: var(--touch-min);
+  cursor: pointer;
+  font-weight: 600;
+  font-size: var(--type-body);
+}
+
+.turn-log__summary::marker {
+  color: var(--color-fg-muted);
+}
+
+.turn-log__body {
+  padding: 0 var(--space-3) var(--space-2);
+}
+
+.turn-log__list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  max-height: 50vh;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.turn-log__entry {
+  display: grid;
+  grid-template-columns: auto auto 1fr;
+  gap: var(--space-2);
+  align-items: baseline;
+  padding: var(--space-1) 0;
+  border-bottom: 1px solid var(--color-border);
+  font-size: var(--type-small);
+}
+
+.turn-log__entry:last-child {
+  border-bottom: none;
+}
+
+.turn-log__round,
+.turn-log__phase {
+  color: var(--color-fg-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.turn-log__phase {
+  text-transform: capitalize;
+}
+
+.turn-log__message {
+  color: var(--color-fg);
+}

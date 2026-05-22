@@ -3,6 +3,12 @@ import { createEffect, createSignal, For } from 'solid-js';
 
 type Props = {
   entries: LogEntry[];
+  /**
+   * Whether the log starts expanded. Defaults to `false` so the
+   * mobile layout doesn't pre-claim vertical space; tests and
+   * desktop callers can pass `true` to opt out.
+   */
+  defaultOpen?: boolean;
 };
 
 export function TurnLog(props: Props) {
@@ -23,18 +29,22 @@ export function TurnLog(props: Props) {
 
   return (
     <section class="turn-log" aria-label="Turn log">
-      <h2 class="turn-log__title">Turn Log</h2>
-      <ol class="turn-log__list" ref={listRef}>
-        <For each={sorted()}>
-          {(entry) => (
-            <li class="turn-log__entry">
-              <span class="turn-log__round">R{entry.round}</span>
-              <span class="turn-log__phase">{entry.phase}</span>
-              <span class="turn-log__message">{entry.message}</span>
-            </li>
-          )}
-        </For>
-      </ol>
+      <details class="turn-log__container" open={props.defaultOpen ?? false}>
+        <summary class="turn-log__summary">Turn Log</summary>
+        <div class="turn-log__body">
+          <ol class="turn-log__list" ref={listRef}>
+            <For each={sorted()}>
+              {(entry) => (
+                <li class="turn-log__entry">
+                  <span class="turn-log__round">R{entry.round}</span>
+                  <span class="turn-log__phase">{entry.phase}</span>
+                  <span class="turn-log__message">{entry.message}</span>
+                </li>
+              )}
+            </For>
+          </ol>
+        </div>
+      </details>
     </section>
   );
 }

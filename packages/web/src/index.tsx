@@ -1,5 +1,6 @@
 import { render } from 'solid-js/web';
 import './styles/tokens.css';
+import './styles/components.css';
 import './screens/setup-screen.css';
 import { App } from './App.tsx';
 
