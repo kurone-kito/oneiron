@@ -184,4 +184,31 @@ describe('SetupScreen', () => {
     fireEvent.submit(screen.getByRole('button', { name: 'Start game' }).form);
     expect(onStart).not.toHaveBeenCalled();
   });
+
+  describe('mobile layout', () => {
+    it('keeps the A–E overrides collapsed by default', () => {
+      const { container } = render(() => (
+        <SetupScreen onStart={() => undefined} />
+      ));
+      const details = container.querySelector('details.setup-screen__advanced');
+      expect(details).toBeTruthy();
+      expect((details as HTMLDetailsElement).open).toBe(false);
+      // The summary label reflects the "advanced" framing.
+      expect(screen.getByText('A-E values (advanced)')).toBeTruthy();
+    });
+
+    it('still exposes the A–E controls when the user expands the override section', () => {
+      const { container } = render(() => (
+        <SetupScreen onStart={() => undefined} />
+      ));
+      const details = container.querySelector(
+        'details.setup-screen__advanced',
+      ) as HTMLDetailsElement;
+      details.open = true;
+      // The model exposes the labelled inputs once the details element
+      // becomes visible to accessibility queries.
+      expect(screen.getByLabelText('Card copies (A)')).toBeTruthy();
+      expect(screen.getByLabelText('Damage overflow factor (E)')).toBeTruthy();
+    });
+  });
 });

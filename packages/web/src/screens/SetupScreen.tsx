@@ -143,9 +143,9 @@ export function SetupScreen(props: Props) {
   }
 
   return (
-    <section aria-label="Game setup">
-      <header>
-        <p>Wave-6 setup</p>
+    <section class="setup-screen" aria-label="Game setup">
+      <header class="setup-screen__header">
+        <p class="setup-screen__eyebrow">Wave-6 setup</p>
         <h1>Dream Duels Setup</h1>
         <p>
           Configure the roster, seed, and A-E values before handing the table to
@@ -153,61 +153,70 @@ export function SetupScreen(props: Props) {
         </p>
       </header>
 
-      <form onSubmit={handleSubmit}>
-        <fieldset>
+      <form class="setup-screen__form" onSubmit={handleSubmit}>
+        <fieldset class="setup-screen__group">
           <legend>Match setup</legend>
 
-          <label for="player-count">Player count</label>
-          <input
-            id="player-count"
-            type="number"
-            min={MIN_PLAYER_COUNT}
-            max={MAX_PLAYER_COUNT}
-            step="1"
-            value={playerCount()}
-            onInput={(event) =>
-              setPlayerCount(
-                clampPlayerCount(
-                  updateInteger(
-                    event.currentTarget.valueAsNumber,
-                    playerCount(),
-                  ),
-                ),
-              )
-            }
-          />
-
-          <label for="seed">Seed</label>
-          <div>
+          <label class="setup-screen__field" for="player-count">
+            <span class="setup-screen__field-label">Player count</span>
             <input
-              id="seed"
-              type="text"
-              inputMode="numeric"
-              value={seedText()}
-              onInput={(event) => setSeedText(event.currentTarget.value)}
-              onBlur={commitSeedText}
+              id="player-count"
+              type="number"
+              min={MIN_PLAYER_COUNT}
+              max={MAX_PLAYER_COUNT}
+              step="1"
+              value={playerCount()}
+              onInput={(event) =>
+                setPlayerCount(
+                  clampPlayerCount(
+                    updateInteger(
+                      event.currentTarget.valueAsNumber,
+                      playerCount(),
+                    ),
+                  ),
+                )
+              }
             />
-            <button
-              type="button"
-              onClick={() => {
-                const nextSeed = createRandomSeed();
-                setSeed(nextSeed);
-                setSeedText(String(nextSeed));
-              }}
-              aria-label="Randomise seed"
-            >
-              Randomise seed
-            </button>
+          </label>
+
+          <div class="setup-screen__field">
+            <label class="setup-screen__field-label" for="seed">
+              Seed
+            </label>
+            <div class="setup-screen__seed-row">
+              <input
+                id="seed"
+                type="text"
+                inputMode="numeric"
+                value={seedText()}
+                onInput={(event) => setSeedText(event.currentTarget.value)}
+                onBlur={commitSeedText}
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  const nextSeed = createRandomSeed();
+                  setSeed(nextSeed);
+                  setSeedText(String(nextSeed));
+                }}
+                aria-label="Randomise seed"
+              >
+                Randomise seed
+              </button>
+            </div>
           </div>
         </fieldset>
 
-        <fieldset>
+        <fieldset class="setup-screen__group">
           <legend>Per-team control</legend>
-          <ul aria-label="Derived teams">
+          <ul class="setup-screen__team-list" aria-label="Derived teams">
             <For each={teamSummaries()}>
               {(team) => (
-                <li>
-                  <label for={`team-control-${team.teamId}`}>
+                <li class="setup-screen__team-row">
+                  <label
+                    class="setup-screen__team-label"
+                    for={`team-control-${team.teamId}`}
+                  >
                     {team.label}
                   </label>
                   <select
@@ -223,7 +232,9 @@ export function SetupScreen(props: Props) {
                     <option value="human">Human</option>
                     <option value="bot">Bot</option>
                   </select>
-                  <span>{team.memberCount} player(s)</span>
+                  <span class="setup-screen__team-meta">
+                    {team.memberCount} player(s)
+                  </span>
                 </li>
               )}
             </For>
@@ -231,14 +242,14 @@ export function SetupScreen(props: Props) {
         </fieldset>
 
         <Show when={startBlocked()}>
-          <p role="status">
+          <p class="setup-screen__status" role="status">
             Current engine start is capped at 18 players because the 3x3 grid
             can host at most 9 teams.
           </p>
         </Show>
 
-        <details>
-          <summary>A-E values</summary>
+        <details class="setup-screen__advanced">
+          <summary>A-E values (advanced)</summary>
 
           <label for="config-a">Card copies (A)</label>
           <input
@@ -316,9 +327,15 @@ export function SetupScreen(props: Props) {
           />
         </details>
 
-        <button type="submit" disabled={startBlocked()}>
-          Start game
-        </button>
+        <div class="setup-screen__actions">
+          <button
+            class="setup-screen__submit"
+            type="submit"
+            disabled={startBlocked()}
+          >
+            Start game
+          </button>
+        </div>
       </form>
     </section>
   );

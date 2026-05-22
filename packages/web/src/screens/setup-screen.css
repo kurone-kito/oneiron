@@ -1,0 +1,240 @@
+/*
+ * Mobile-first layout for SetupScreen.
+ *
+ * Single-column vertical stacking with fluid full-width inputs.
+ * A–E overrides live inside a collapsed-by-default <details>.
+ * The submit button is full-width and sticks to the bottom of
+ * the viewport so the form doesn't require the user to scroll
+ * past every per-team row before they can start the game.
+ *
+ * Tap-targets respect --touch-min from tokens.css. The form
+ * stays single column on wider viewports; the only growth on
+ * tablet/desktop is a wider container max-width.
+ */
+
+.setup-screen {
+  display: block;
+  max-width: min(640px, 100%);
+  margin: 0 auto;
+  padding: var(--space-4);
+  padding-bottom: calc(var(--space-7) + var(--touch-min));
+}
+
+.setup-screen__header {
+  margin: 0 0 var(--space-5);
+}
+
+.setup-screen__header > h1 {
+  margin: var(--space-1) 0;
+}
+
+.setup-screen__eyebrow {
+  margin: 0;
+  font-size: var(--type-small);
+  color: var(--color-fg-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.setup-screen__form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.setup-screen__group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin: 0;
+  padding: var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-2);
+  background: var(--color-bg-elevated);
+}
+
+.setup-screen__group > legend {
+  padding: 0 var(--space-1);
+  color: var(--color-fg);
+  font-weight: 600;
+}
+
+.setup-screen__field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.setup-screen__field-label {
+  font-size: var(--type-small);
+  color: var(--color-fg-muted);
+}
+
+.setup-screen__field input,
+.setup-screen__field select,
+.setup-screen__advanced input,
+.setup-screen__team-row select {
+  min-height: var(--touch-min);
+  padding: var(--space-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-1);
+  background: var(--color-bg);
+  color: var(--color-fg);
+  font-size: var(--type-body);
+  font-variant-numeric: tabular-nums;
+}
+
+.setup-screen__field input:focus-visible,
+.setup-screen__field select:focus-visible,
+.setup-screen__advanced input:focus-visible,
+.setup-screen__team-row select:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+.setup-screen__field input {
+  width: 100%;
+}
+
+.setup-screen__seed-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: stretch;
+}
+
+.setup-screen__seed-row > input {
+  flex: 1 1 8rem;
+  min-width: 0;
+}
+
+.setup-screen__seed-row > button {
+  flex: 0 0 auto;
+  min-height: var(--touch-min);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-1);
+  background: var(--color-bg);
+  color: var(--color-fg);
+  font-size: var(--type-small);
+  cursor: pointer;
+}
+
+.setup-screen__team-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.setup-screen__team-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-areas:
+    "label  select"
+    "meta   meta";
+  column-gap: var(--space-2);
+  row-gap: var(--space-1);
+  align-items: center;
+  padding: var(--space-2) 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.setup-screen__team-row:last-child {
+  border-bottom: none;
+}
+
+.setup-screen__team-label {
+  grid-area: label;
+  font-weight: 500;
+}
+
+.setup-screen__team-row > select {
+  grid-area: select;
+  min-width: clamp(6rem, 28vw, 9rem);
+}
+
+.setup-screen__team-meta {
+  grid-area: meta;
+  color: var(--color-fg-muted);
+  font-size: var(--type-small);
+}
+
+.setup-screen__status {
+  margin: 0;
+  padding: var(--space-3);
+  border: 1px solid var(--color-fire);
+  border-radius: var(--radius-1);
+  background: color-mix(
+    in srgb,
+    var(--color-fire) 8%,
+    var(--color-bg-elevated)
+  );
+  color: var(--color-fg);
+  font-size: var(--type-small);
+}
+
+.setup-screen__advanced {
+  margin: 0;
+  padding: var(--space-3);
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-2);
+  background: var(--color-bg-elevated);
+}
+
+.setup-screen__advanced > summary {
+  display: list-item;
+  min-height: var(--touch-min);
+  padding: var(--space-1) 0;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.setup-screen__advanced label {
+  display: block;
+  margin-top: var(--space-3);
+  font-size: var(--type-small);
+  color: var(--color-fg-muted);
+}
+
+.setup-screen__advanced input {
+  width: 100%;
+  margin-top: var(--space-1);
+}
+
+.setup-screen__actions {
+  /* Sticky to the bottom of the viewport so the submit affordance
+   * is always reachable without scrolling past the team list. */
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  margin-top: var(--space-4);
+  padding: var(--space-3) 0;
+  background: linear-gradient(to top, var(--color-bg) 60%, transparent 100%);
+}
+
+.setup-screen__submit {
+  flex: 1 1 auto;
+  min-height: var(--touch-min);
+  padding: var(--space-3);
+  border: none;
+  border-radius: var(--radius-2);
+  background: var(--color-accent);
+  color: white;
+  font-size: var(--type-heading-3);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.setup-screen__submit:disabled {
+  background: var(--color-border);
+  color: var(--color-fg-muted);
+  cursor: not-allowed;
+}
+
+.setup-screen__submit:focus-visible {
+  outline: 2px solid var(--color-fg);
+  outline-offset: 2px;
+}
