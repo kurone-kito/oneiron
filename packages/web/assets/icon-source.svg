@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <title>Dream Duels: The Battle for Oneiron</title>
+  <desc>App icon: three element discs (fire / water / wood) arranged in a triangle on a dark background.</desc>
+  <rect width="512" height="512" rx="96" ry="96" fill="#14161a" />
+  <!-- Three element discs forming a triangle in the safe zone. -->
+  <!-- Safe zone for maskable icons is the central ~80% (radius 0.4 of side). -->
+  <g transform="translate(256 256)">
+    <!-- top: fire -->
+    <circle cx="0" cy="-104" r="84" fill="#d94236" />
+    <!-- bottom-left: water -->
+    <circle cx="-90" cy="52" r="84" fill="#2b76d4" />
+    <!-- bottom-right: wood -->
+    <circle cx="90" cy="52" r="84" fill="#2f9e50" />
+  </g>
+</svg>

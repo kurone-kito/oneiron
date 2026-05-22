@@ -20,6 +20,23 @@ Scaffold only — UI is added by follow-up issues.
 pnpm --filter @kurone-kito/oneiron-web run dev
 ```
 
+## Installing as a mobile app
+
+A built-and-served instance of this package can be added to a
+mobile home screen via the browser's standard PWA install
+flow:
+
+- **iOS Safari**: tap the Share button, then
+  **Add to Home Screen**.
+- **Android Chrome / Edge**: tap the overflow menu (⋮), then
+  **Install app** or **Add to Home Screen**.
+
+The app launches in standalone mode using the icon and name
+declared in
+[`public/manifest.webmanifest`](./public/manifest.webmanifest).
+Service-worker-based offline support lands separately; see
+roadmap [#145](../../).
+
 ## License
 
 [MIT](../../LICENSE)
