@@ -20,6 +20,26 @@ Scaffold only — UI is added by follow-up issues.
 pnpm --filter @kurone-kito/oneiron-web run dev
 ```
 
+## Build
+
+```sh
+# Default — assets rooted at "/" (good for `pnpm preview` and any
+# deployment that owns the domain root).
+pnpm --filter @kurone-kito/oneiron-web run build
+
+# GitHub Pages — assets rooted at "/oneiron/" so they resolve under
+# https://kurone-kito.github.io/oneiron/. The deploy workflow
+# (issue #161) sets this automatically.
+WEB_BASE=/oneiron/ pnpm --filter @kurone-kito/oneiron-web run build
+```
+
+`WEB_BASE` is read by [`vite.config.ts`](./vite.config.ts) and
+applied to Vite's [`base`](https://vite.dev/config/shared-options.html#base)
+plus the PWA service-worker registration scope. The hand-written
+[`public/manifest.webmanifest`](./public/manifest.webmanifest)
+uses manifest-relative URLs (`./icon-192.png` etc.) so it adapts
+to any base path without a build-time rewrite.
+
 ## Installing as a mobile app
 
 A built-and-served instance of this package can be added to a
