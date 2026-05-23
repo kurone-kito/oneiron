@@ -36,8 +36,12 @@ describe('PWA manifest', () => {
   it('declares the required identity fields', () => {
     expect(manifest.name).toBeTruthy();
     expect(manifest.short_name).toBeTruthy();
-    expect(manifest.start_url).toBe('/');
-    expect(manifest.scope).toBe('/');
+    // start_url + scope are relative to the manifest URL so the
+    // same file works at the root ("/") in dev and under a
+    // subpath ("/oneiron/") on GitHub Pages without a build-time
+    // rewrite. See #160 for the design rationale.
+    expect(manifest.start_url).toBe('./');
+    expect(manifest.scope).toBe('./');
     expect(manifest.display).toBe('standalone');
   });
 
@@ -59,13 +63,20 @@ describe('PWA manifest', () => {
   it('ships every referenced icon file under public/', () => {
     const icons = manifest.icons ?? [];
     for (const icon of icons) {
-      // src is rooted at /, mapped to public/<filename>.
-      const localPath = join(publicDir, icon.src.replace(/^\//, ''));
+      // src is a manifest-relative URL (e.g. "./icon-192.png").
+      // Strip the leading "./" or "/" so it maps to public/<file>.
+      const localPath = join(publicDir, icon.src.replace(/^\.?\//, ''));
       expect(existsSync(localPath)).toBe(true);
       expect(statSync(localPath).size).toBeGreaterThan(0);
     }
     // apple-touch-icon is not in the manifest but is required by iOS.
     expect(existsSync(join(publicDir, 'apple-touch-icon.png'))).toBe(true);
+  });
+
+  it('uses relative icon URLs so subpath deploys resolve correctly', () => {
+    for (const icon of manifest.icons ?? []) {
+      expect(icon.src.startsWith('./')).toBe(true);
+    }
   });
 });
 
