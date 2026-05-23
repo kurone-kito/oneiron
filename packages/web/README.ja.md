@@ -40,6 +40,33 @@ Vite の [`base`](https://vite.dev/config/shared-options.html#base)
 は manifest-relative URL (`./icon-192.png` 等) を使うため、
 ベースパスが何であっても build 時の書き換え無しで追従します。
 
+## デプロイ
+
+シミュレーターは GitHub Pages 上の
+[`https://kurone-kito.github.io/oneiron/`](https://kurone-kito.github.io/oneiron/)
+で公開されます。
+
+- **自動デプロイ**: `main` への push で
+  [`.github/workflows/deploy.yml`](../../.github/workflows/deploy.yml)
+  がトリガーされ、`WEB_BASE=/oneiron/` でビルドして
+  `packages/web/dist/` を GitHub Pages 公式 actions
+  (`actions/configure-pages` + `upload-pages-artifact` +
+  `deploy-pages`) で公開します。
+- **手動再デプロイ**:
+
+  ```sh
+  gh workflow run "Deploy web simulator to GitHub Pages"
+  ```
+
+  あるいは
+  [Actions タブ](https://github.com/kurone-kito/oneiron/actions/workflows/deploy.yml)
+  の **Run workflow** ボタンから実行できます。
+
+リポジトリの Pages source は **GitHub Actions** に維持されている
+必要があります
+([Settings → Pages](https://github.com/kurone-kito/oneiron/settings/pages))。
+ブランチ source へ戻すとこの workflow は機能しなくなります。
+
 ## モバイル端末へのインストール
 
 ビルド・配信されたインスタンスは、ブラウザ標準の PWA インストール
