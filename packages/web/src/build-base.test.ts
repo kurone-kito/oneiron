@@ -45,7 +45,14 @@ function runBuild(envBase: string | undefined): BuildOutputs {
   };
 }
 
-describe('vite build base resolution', () => {
+// Windows shells locate pnpm as `pnpm.cmd`, which `execFileSync`
+// without a shell can't see, so this build-integration test runs
+// only on POSIX. The build itself is platform-independent — the
+// Linux CI jobs cover it, and local dev (macOS / Linux) catches
+// regressions before they hit Windows.
+const IS_WINDOWS = process.platform === 'win32';
+
+describe.skipIf(IS_WINDOWS)('vite build base resolution', () => {
   let defaultBuild: BuildOutputs;
   let subpathBuild: BuildOutputs;
 
