@@ -42,12 +42,12 @@ jobs:
         name: Build the web simulator with the GitHub Pages base
         run: pnpm --filter @kurone-kito/oneiron-web run build
       - name: Configure GitHub Pages
-        uses: actions/configure-pages@v5
+        uses: actions/configure-pages@v6
       - name: Upload the dist directory as the Pages artifact
-        uses: actions/upload-pages-artifact@v3
+        uses: actions/upload-pages-artifact@v5
         with:
           path: packages/web/dist
       - id: deployment
         name: Deploy to GitHub Pages
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5
     timeout-minutes: 10
