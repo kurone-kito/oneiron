@@ -1,0 +1,53 @@
+concurrency:
+  # `cancel-in-progress: false` lets an in-flight deploy finish even
+  # if a newer push lands — Pages doesn't gracefully cancel mid-deploy.
+  cancel-in-progress: false
+  group: pages
+name: Deploy web simulator to GitHub Pages
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+  id-token: write
+  pages: write
+run-name: Deploy web simulator triggered by @${{ github.actor }}
+jobs:
+  build-and-deploy:
+    name: Build and deploy
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - name: Stages the pushed branch
+        uses: actions/checkout@v6
+      - name: Setup the pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          run_install: false
+      - name: Prepare the Node.js 24.x environment
+        uses: actions/setup-node@v6
+        with:
+          cache: pnpm
+          check-latest: true
+          node-version: 24.x
+      - env:
+          HUSKY: 0
+        name: Install the dependencies
+        run: pnpm install --frozen-lockfile --prefer-offline
+      - env:
+          WEB_BASE: /oneiron/
+        name: Build the web simulator with the GitHub Pages base
+        run: pnpm --filter @kurone-kito/oneiron-web run build
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+      - name: Upload the dist directory as the Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: packages/web/dist
+      - id: deployment
+        name: Deploy to GitHub Pages
+        uses: actions/deploy-pages@v4
+    timeout-minutes: 10

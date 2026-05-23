@@ -40,6 +40,30 @@ plus the PWA service-worker registration scope. The hand-written
 uses manifest-relative URLs (`./icon-192.png` etc.) so it adapts
 to any base path without a build-time rewrite.
 
+## Deployment
+
+The simulator is published to GitHub Pages at
+[`https://kurone-kito.github.io/oneiron/`](https://kurone-kito.github.io/oneiron/).
+
+- **Automatic**: every push to `main` triggers
+  [`.github/workflows/deploy.yml`](../../.github/workflows/deploy.yml),
+  which builds with `WEB_BASE=/oneiron/` and publishes the
+  `packages/web/dist/` artifact via the official Pages actions
+  (`actions/configure-pages` + `upload-pages-artifact` +
+  `deploy-pages`).
+- **Manual re-run**:
+
+  ```sh
+  gh workflow run "Deploy web simulator to GitHub Pages"
+  ```
+
+  Or use the **Run workflow** button on
+  [the Actions tab](https://github.com/kurone-kito/oneiron/actions/workflows/deploy.yml).
+
+The repository's Pages source must remain **GitHub Actions**
+(see [Settings → Pages](https://github.com/kurone-kito/oneiron/settings/pages));
+switching back to a branch source disables this workflow.
+
 ## Installing as a mobile app
 
 A built-and-served instance of this package can be added to a
