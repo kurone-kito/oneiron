@@ -371,5 +371,73 @@ describe('GameplayScreen', () => {
         vi.useRealTimers();
       }
     });
+
+    it('renders bots in new grid cells after auto-play drives several rounds', async () => {
+      // Mirrors the engine-side spot-check from #166 / #167: an
+      // all-bot session at the same seed should reach the DOM
+      // with at least one team chip in a different cell after a
+      // handful of rounds. If this assertion fails on `main`,
+      // the engine is fine (covered by packages/cli/src/e2e.test.ts)
+      // but `GameplayScreen` isn't propagating `displayedState`
+      // changes to the rendered `<GameGrid>` — that's the bug
+      // the maintainer observed.
+      vi.useFakeTimers();
+      try {
+        const initial = setupGame({ playerCount: 6, seed: 7 }, DEFAULT_CONFIG);
+        const config = botConfigFor(initial, 0);
+        render(() => <GameplayScreen initialState={initial} config={config} />);
+
+        const snapshotPositions = (): ReadonlyMap<string, string> => {
+          const map = new Map<string, string>();
+          // Each team chip carries `aria-label="Team N"`; the
+          // enclosing `<td>` in `<GameGrid>` carries
+          // `aria-label="<x>,<y>"` (optionally suffixed with
+          // " (forbidden)"). We walk up to that cell to read
+          // the position.
+          for (const chip of Array.from(
+            document.querySelectorAll('[aria-label^="Team "]'),
+          )) {
+            const cell = chip.closest('td[aria-label]');
+            if (!cell) continue;
+            const cellLabel = cell.getAttribute('aria-label') ?? '';
+            // Only match cells inside the grid (the team summary
+            // cards under "Surviving teams" also use
+            // `Team N` aria-labels but live in <article>s).
+            if (!/^(fire|water|wood),(fire|water|wood)/.test(cellLabel)) {
+              continue;
+            }
+            map.set(
+              chip.getAttribute('aria-label') ?? '',
+              cellLabel.replace(/\s*\(forbidden\)$/, ''),
+            );
+          }
+          return map;
+        };
+
+        const before = snapshotPositions();
+        expect(before.size).toBeGreaterThan(0);
+
+        fireEvent.click(
+          screen.getByRole('button', { name: /Open auxiliary controls/i }),
+        );
+        fireEvent.click(screen.getByRole('button', { name: 'Play' }));
+        // Default auto-play delay is 200 ms; allow several rounds.
+        await vi.advanceTimersByTimeAsync(1500);
+        fireEvent.click(screen.getByRole('button', { name: 'Pause' }));
+
+        const after = snapshotPositions();
+
+        const moved = [...after.entries()].filter(
+          ([team, pos]) =>
+            before.get(team) !== undefined && before.get(team) !== pos,
+        );
+        expect(
+          moved.length,
+          `expected at least one team chip to be in a new cell after auto-play; before=${JSON.stringify([...before])} after=${JSON.stringify([...after])}`,
+        ).toBeGreaterThan(0);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
   });
 });

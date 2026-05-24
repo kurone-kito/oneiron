@@ -69,15 +69,23 @@ export function GameGrid(props: Props) {
                 <th class="game-grid__row-label">{y}</th>
                 <For each={[...ELEMENT_AXIS]}>
                   {(x) => {
+                    // `props.forbiddenCells` and `props.grid` are
+                    // Solid reactive sources via the props proxy.
+                    // Reading them inside getter / JSX expressions
+                    // keeps the cell reactive across round
+                    // transitions; binding them to plain `const`s
+                    // here would snapshot the values on first
+                    // render and never refresh — that was the
+                    // "bots don't appear to move" bug from #167.
                     const coord: GridCoord = { x, y };
-                    const forbidden = isForbidden(coord, props.forbiddenCells);
-                    const teams = props.grid[x][y];
+                    const isCellForbidden = () =>
+                      isForbidden(coord, props.forbiddenCells);
                     return (
                       <td
-                        class={`game-grid__cell${forbidden ? ' game-grid__cell--forbidden' : ''}`}
-                        aria-label={`${x},${y}${forbidden ? ' (forbidden)' : ''}`}
+                        class={`game-grid__cell${isCellForbidden() ? ' game-grid__cell--forbidden' : ''}`}
+                        aria-label={`${x},${y}${isCellForbidden() ? ' (forbidden)' : ''}`}
                       >
-                        <CellContent teams={teams} />
+                        <CellContent teams={props.grid[x][y]} />
                       </td>
                     );
                   }}
