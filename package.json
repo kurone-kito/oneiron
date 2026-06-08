@@ -44,7 +44,7 @@
     "@kurone-kito/typescript-config": "^0.22.0-alpha.9",
     "@vitest/coverage-v8": "^3.2.0",
     "cspell": "^10.0.0",
-    "vitest": "^3.2.0",
+    "vitest": "^3.2.6",
     "husky": "^9.1.7",
     "lint-staged": "^17.0.5",
     "markdownlint-cli2": "^0.22.1",
