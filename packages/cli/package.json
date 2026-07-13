@@ -40,6 +40,6 @@
   "devDependencies": {
     "@kurone-kito/typescript-config": "^0.22.0-alpha.9",
     "rimraf": "^6.0.1",
-    "tsx": "^4.8.1"
+    "tsx": "^4.22.4"
   }
 }
