@@ -37,6 +37,67 @@ function botConfigFor(initial: RoundState, seed = 0): SessionConfig {
   return { controls, gameConfig: DEFAULT_CONFIG };
 }
 
+function mixedConfigFor(
+  initial: RoundState,
+  humanTeam: TeamId,
+  seed = 0,
+): SessionConfig {
+  const controls = new Map<TeamId, TeamControl>();
+  for (const x of ['fire', 'water', 'wood'] as const) {
+    for (const y of ['fire', 'water', 'wood'] as const) {
+      for (const team of initial.grid[x][y]) {
+        controls.set(
+          team.teamNumber,
+          team.teamNumber === humanTeam
+            ? { type: 'human' }
+            : { type: 'bot', strategy: randomStrategy(seed + team.teamNumber) },
+        );
+      }
+    }
+  }
+  return { controls, gameConfig: DEFAULT_CONFIG };
+}
+
+/** Round number read from the header, or null if it cannot be parsed. */
+function currentRound(): number | null {
+  const heading = screen.getByRole('heading', { name: 'Game session' });
+  const match = heading.parentElement?.textContent?.match(/round\s*(\d+)/i);
+  return match ? Number(match[1]) : null;
+}
+
+/**
+ * Clicks whichever phase-input submit button is currently on screen,
+ * using each field's default selection. Returns `true` if a panel was
+ * found and submitted, `false` if none was present (game over or an
+ * unexpected stuck state).
+ */
+function submitWhicheverPanelIsShowing(): boolean {
+  const battle = screen.queryByRole('button', { name: 'Submit battle plays' });
+  if (battle) {
+    fireEvent.click(battle);
+    return true;
+  }
+  const moves = screen.queryByRole('button', { name: 'Submit moves' });
+  if (moves) {
+    fireEvent.click(moves);
+    return true;
+  }
+  const revival = screen.queryByRole('button', { name: 'Submit revival' });
+  if (revival) {
+    fireEvent.click(revival);
+    return true;
+  }
+  return false;
+}
+
+/** True when either a phase input panel or the game-over panel is shown. */
+function showsInputOrGameOver(): boolean {
+  return (
+    screen.queryByLabelText(/phase input/i) !== null ||
+    screen.queryByLabelText('Game over') !== null
+  );
+}
+
 function makeTeam(opts: {
   id: TeamId;
   position: { x: 'fire' | 'water' | 'wood'; y: 'fire' | 'water' | 'wood' };
@@ -291,6 +352,45 @@ describe('GameplayScreen', () => {
     fireEvent.click(screen.getByRole('button', { name: /Previous/ }));
     expect(screen.queryByLabelText(/phase input — battle/i)).toBeNull();
     expect(screen.getByLabelText('History view banner')).toBeTruthy();
+  });
+
+  it('keeps driving a mixed human/bot session past the first round', () => {
+    // Regression test for #204: a mixed session used to dead-end at the
+    // end of round 1 because nothing re-entered `drive()` after a
+    // round boundary for sessions without auto-play. Answering only
+    // the input panels the UI presents (no direct `session.step` /
+    // `drive` calls) must reach round 3 or later.
+    const initial = setupGame({ playerCount: 4, seed: 1 }, DEFAULT_CONFIG);
+    const config = mixedConfigFor(initial, 1 as TeamId, 10);
+    render(() => <GameplayScreen initialState={initial} config={config} />);
+
+    for (let i = 0; i < 200 && (currentRound() ?? 0) < 3; i++) {
+      const submitted = submitWhicheverPanelIsShowing();
+      if (!submitted) break;
+    }
+
+    expect(currentRound()).not.toBeNull();
+    expect(currentRound() as number).toBeGreaterThanOrEqual(3);
+  });
+
+  it('always shows a phase input panel or the game-over panel after a submission', () => {
+    // Companion invariant for #204: after every submission that does
+    // not end the game, the screen must show either the next phase's
+    // input panel or the game-over panel — never neither.
+    const initial = setupGame({ playerCount: 4, seed: 1 }, DEFAULT_CONFIG);
+    const config = mixedConfigFor(initial, 1 as TeamId, 10);
+    render(() => <GameplayScreen initialState={initial} config={config} />);
+
+    for (let i = 0; i < 60; i++) {
+      const submitted = submitWhicheverPanelIsShowing();
+      if (!submitted) {
+        // No panel left to submit — this is only valid if the game
+        // has ended.
+        expect(screen.queryByLabelText('Game over')).toBeTruthy();
+        break;
+      }
+      expect(showsInputOrGameOver()).toBe(true);
+    }
   });
 
   describe('mobile layout', () => {
