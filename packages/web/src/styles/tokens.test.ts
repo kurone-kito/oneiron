@@ -18,11 +18,14 @@ describe('mobile-first design tokens', () => {
     ['--radius-1', '--radius-3'],
     ['--bp-tablet'],
     ['--touch-min'],
-  ] satisfies readonly (readonly string[])[])('exposes the expected tokens (%s)', (...tokens) => {
-    for (const token of tokens) {
-      expect(tokensCss).toContain(`${token}:`);
-    }
-  });
+  ] satisfies readonly (readonly string[])[])(
+    'exposes the expected tokens (%s)',
+    (...tokens) => {
+      for (const token of tokens) {
+        expect(tokensCss).toContain(`${token}:`);
+      }
+    },
+  );
 
   it('applies a global box-sizing reset', () => {
     expect(tokensCss).toMatch(
