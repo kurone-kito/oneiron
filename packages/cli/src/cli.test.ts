@@ -40,8 +40,11 @@ describe('runCli', () => {
     it('prints help text and exits 0 for --help without requiring player-count/games', async () => {
       const code = await runCli(['batch', '--help']);
       expect(code).toBe(0);
-      expect(stdout.join('\n')).toContain('Usage:');
-      expect(stdout.join('\n')).toContain('--player-count');
+      const out = stdout.join('\n');
+      expect(out).toContain('Usage:');
+      expect(out).toContain('--player-count');
+      expect(out).toContain('Number of players');
+      expect(out).not.toContain('Number of teams');
     });
 
     it('prints help text for the -h short flag', async () => {

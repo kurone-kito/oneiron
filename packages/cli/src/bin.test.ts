@@ -137,5 +137,7 @@ describe('bin/oneiron (compiled dist/cli.js)', () => {
     expect(status).toBe(0);
     expect(stdout).toContain('Usage:');
     expect(stdout).toContain('--player-count');
+    expect(stdout).toContain('Number of players');
+    expect(stdout).not.toContain('Number of teams');
   });
 });
