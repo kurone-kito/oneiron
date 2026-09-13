@@ -93,7 +93,7 @@ describe('bin/oneiron (compiled dist/cli.js)', () => {
     expect(status).toBe(0);
     const lines = stdout.trimEnd().split('\n');
     expect(lines[0]).toBe(
-      'seed,winner,rounds,survivingTeams,totalDamageDealt,graveyardSize,soloTeams',
+      'seed,winner,rounds,survivingTeams,totalDamageDealt,graveyardSize,soloTeams,hitRoundCap',
     );
     expect(lines).toHaveLength(2);
   });
@@ -130,5 +130,14 @@ describe('bin/oneiron (compiled dist/cli.js)', () => {
     expect(stdout).toContain('Usage:');
     expect(stdout).toContain('batch');
     expect(stdout).toContain('--format');
+  });
+
+  it('prints the help text for `batch --help` without requiring player-count/games', () => {
+    const { stdout, status } = runBin(['batch', '--help']);
+    expect(status).toBe(0);
+    expect(stdout).toContain('Usage:');
+    expect(stdout).toContain('--player-count');
+    expect(stdout).toContain('Number of players');
+    expect(stdout).not.toContain('Number of teams');
   });
 });
