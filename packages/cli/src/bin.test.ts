@@ -131,4 +131,11 @@ describe('bin/oneiron (compiled dist/cli.js)', () => {
     expect(stdout).toContain('batch');
     expect(stdout).toContain('--format');
   });
+
+  it('prints the help text for `batch --help` without requiring player-count/games', () => {
+    const { stdout, status } = runBin(['batch', '--help']);
+    expect(status).toBe(0);
+    expect(stdout).toContain('Usage:');
+    expect(stdout).toContain('--player-count');
+  });
 });

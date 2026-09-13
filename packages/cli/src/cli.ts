@@ -54,6 +54,7 @@ const options = {
 } as const;
 
 const batchOptions = {
+  help: { short: 'h', type: 'boolean' },
   'player-count': { type: 'string' },
   games: { type: 'string' },
   'seed-start': { type: 'string' },
@@ -132,10 +133,14 @@ const parseOptionalInt = (
   return Number.parseInt(raw, 10);
 };
 
+type BatchOptionValues = {
+  readonly [K in keyof typeof batchOptions]?: (typeof batchOptions)[K]['type'] extends 'boolean'
+    ? boolean
+    : string;
+};
+
 const runBatchCommand = async (argv: readonly string[]): Promise<number> => {
-  let values: {
-    readonly [K in keyof typeof batchOptions]?: string;
-  };
+  let values: BatchOptionValues;
   try {
     ({ values } = parseArgs({
       args: [...argv],
@@ -147,6 +152,11 @@ const runBatchCommand = async (argv: readonly string[]): Promise<number> => {
     console.error('');
     console.error(HELP_TEXT);
     return 1;
+  }
+
+  if (values.help === true) {
+    console.log(HELP_TEXT);
+    return 0;
   }
 
   try {

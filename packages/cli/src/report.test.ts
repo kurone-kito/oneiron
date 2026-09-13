@@ -104,14 +104,19 @@ describe('formatJson', () => {
     const summary = summarise([
       outcome({ winner: 1 as TeamId, rounds: 4 }),
       outcome({ winner: 1 as TeamId, rounds: 6 }),
+      outcome({ winner: null, rounds: 50, hitRoundCap: true }),
     ]);
     const json = formatJson(summary);
     const parsed = JSON.parse(json) as {
       games: number;
       winsByTeam: Record<string, number>;
+      drawCount: number;
+      unfinishedCount: number;
     };
-    expect(parsed.games).toBe(2);
+    expect(parsed.games).toBe(3);
     expect(parsed.winsByTeam['1']).toBe(2);
+    expect(parsed.drawCount).toBe(0);
+    expect(parsed.unfinishedCount).toBe(1);
   });
 });
 

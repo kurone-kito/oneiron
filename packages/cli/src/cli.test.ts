@@ -37,6 +37,19 @@ describe('runCli', () => {
   });
 
   describe('batch subcommand', () => {
+    it('prints help text and exits 0 for --help without requiring player-count/games', async () => {
+      const code = await runCli(['batch', '--help']);
+      expect(code).toBe(0);
+      expect(stdout.join('\n')).toContain('Usage:');
+      expect(stdout.join('\n')).toContain('--player-count');
+    });
+
+    it('prints help text for the -h short flag', async () => {
+      const code = await runCli(['batch', '-h']);
+      expect(code).toBe(0);
+      expect(stdout.join('\n')).toContain('Usage:');
+    });
+
     it('prints JSON with summary and outcomes on success', async () => {
       const code = await runCli([
         'batch',
