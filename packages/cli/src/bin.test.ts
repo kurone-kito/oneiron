@@ -93,7 +93,7 @@ describe('bin/oneiron (compiled dist/cli.js)', () => {
     expect(status).toBe(0);
     const lines = stdout.trimEnd().split('\n');
     expect(lines[0]).toBe(
-      'seed,winner,rounds,survivingTeams,totalDamageDealt,graveyardSize,soloTeams',
+      'seed,winner,rounds,survivingTeams,totalDamageDealt,graveyardSize,soloTeams,hitRoundCap',
     );
     expect(lines).toHaveLength(2);
   });

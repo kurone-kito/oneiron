@@ -20,11 +20,17 @@ Subcommands:
   batch          Run N games and print outcome JSON to stdout
 
 Batch options:
-  --player-count <n>      Number of teams (required)
+  --player-count <n>      Number of players; teams are derived from
+                          this (required)
   --games <n>             Number of games to run (required)
   --seed-start <n>        Seed for the first game (default 0)
   --max-rounds <n>        Max rounds per game (default 50)
-  --strategy-seed <n>     Base seed for bot strategies (default 0)
+  --strategy-seed <n>     Base seed for bot strategies (default 0).
+                          Each game derives its own seed as
+                          strategySeed + gameIndex * 1000000, so games
+                          in a batch no longer share one RNG stream;
+                          a given (seedStart, strategySeed, games)
+                          still reproduces byte-identical output
   --format <fmt>          Output format: json (default), csv, markdown
   --output <path>         Write to <path> instead of stdout`;
 

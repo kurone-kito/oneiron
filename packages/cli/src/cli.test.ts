@@ -119,7 +119,7 @@ describe('runCli', () => {
       expect(code).toBe(0);
       const out = stdout[0] ?? '';
       expect(out.split('\n')[0]).toBe(
-        'seed,winner,rounds,survivingTeams,totalDamageDealt,graveyardSize,soloTeams',
+        'seed,winner,rounds,survivingTeams,totalDamageDealt,graveyardSize,soloTeams,hitRoundCap',
       );
       expect(out.split('\n')).toHaveLength(3);
     });
