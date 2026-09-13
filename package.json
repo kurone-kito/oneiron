@@ -32,7 +32,7 @@
     "test:watch": "vitest"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.5.6",
+    "@biomejs/biome": "^2.5.9",
     "@commitlint/cli": "^21.2.1",
     "@commitlint/config-conventional": "^21.2.0",
     "@cspell/cspell-types": "^10.0.1",
