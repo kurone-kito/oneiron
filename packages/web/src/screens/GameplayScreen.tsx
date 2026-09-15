@@ -50,6 +50,11 @@ const MIN_AUTOPLAY_DELAY_MS = 0;
 const MAX_AUTOPLAY_DELAY_MS = 2000;
 const DEFAULT_AUTOPLAY_DELAY_MS = 200;
 const LOG_RETENTION = 500;
+// Safety bound for the auto-continue loop in `drive()`: a round that
+// never awaits input and never ends the game would otherwise spin the
+// browser. Generous enough for any real game; remove once #171 adds a
+// dedicated stalemate guard.
+const MAX_CONSECUTIVE_ROUND_ADVANCES = 1000;
 
 function listLivingTeams(state: RoundState): TeamState[] {
   const teams: TeamState[] = [];
@@ -188,9 +193,14 @@ export function GameplayScreen(props: GameplayScreenProps) {
   /**
    * Drives the session forward. Pushes a history frame after every
    * `session.step` call so the replay UI can scrub through past
-   * states. Stops at the first awaiting request, at game-over, or
-   * once the round completes (so the auto-play loop can insert a
-   * delay between rounds).
+   * states. Stops at the first awaiting request or at game-over.
+   *
+   * For all-bot sessions, stops after one round completes so the
+   * auto-play loop can insert its configured delay between rounds.
+   * For sessions with at least one human-controlled team, there is no
+   * auto-play control to re-enter `drive()` after a round boundary, so
+   * it keeps stepping the freshly created session across round
+   * boundaries until a human decision is needed or the game ends.
    *
    * Returns the terminal status so callers know whether to keep
    * ticking ('round-done') or wait for input ('awaiting' / 'game-over').
@@ -198,29 +208,36 @@ export function GameplayScreen(props: GameplayScreenProps) {
   function drive(
     humanInputs?: HumanInputs,
   ): 'awaiting' | 'round-done' | 'game-over' {
-    const result = session.step(humanInputs);
-    pushState(result.state);
-    if (result.log.length > 0) {
-      setLog((prev) => {
-        const merged = [...prev, ...result.log];
-        // Cap retention so long auto-play sessions don't unbounded-grow.
-        return merged.length > LOG_RETENTION
-          ? merged.slice(merged.length - LOG_RETENTION)
-          : merged;
-      });
-    }
+    let inputs = humanInputs;
+    for (let i = 0; i < MAX_CONSECUTIVE_ROUND_ADVANCES; i++) {
+      const result = session.step(inputs);
+      pushState(result.state);
+      if (result.log.length > 0) {
+        setLog((prev) => {
+          const merged = [...prev, ...result.log];
+          // Cap retention so long auto-play sessions don't unbounded-grow.
+          return merged.length > LOG_RETENTION
+            ? merged.slice(merged.length - LOG_RETENTION)
+            : merged;
+        });
+      }
 
-    if (result.status === 'awaiting') {
-      setPending(result.request);
-      resetFormsFor(result.request);
-      return 'awaiting';
+      if (result.status === 'awaiting') {
+        setPending(result.request);
+        resetFormsFor(result.request);
+        return 'awaiting';
+      }
+      setPending(null);
+      if (isGameOver(result.state)) {
+        setOver(true);
+        return 'game-over';
+      }
+      session = createSession(result.state, props.config);
+      if (isAllBot()) {
+        return 'round-done';
+      }
+      inputs = undefined;
     }
-    setPending(null);
-    if (isGameOver(result.state)) {
-      setOver(true);
-      return 'game-over';
-    }
-    session = createSession(result.state, props.config);
     return 'round-done';
   }
 
