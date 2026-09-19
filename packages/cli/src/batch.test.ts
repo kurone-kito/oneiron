@@ -81,4 +81,45 @@ describe('runBatch', () => {
     });
     expect(a).not.toEqual(b);
   });
+
+  it('flags hitRoundCap consistently with winner and survivingTeams', () => {
+    const { outcomes } = runBatch({
+      playerCount: 6,
+      seedStart: 1,
+      gameCount: 30,
+      maxRoundsPerGame: 5,
+    });
+    for (const outcome of outcomes) {
+      if (outcome.winner !== null) {
+        expect(outcome.hitRoundCap).toBe(false);
+        expect(outcome.survivingTeams).toHaveLength(1);
+      } else if (outcome.hitRoundCap) {
+        expect(outcome.survivingTeams.length).toBeGreaterThan(1);
+      } else {
+        expect(outcome.survivingTeams).toHaveLength(0);
+      }
+    }
+    // A 5-round cap over 6 teams is short enough that at least one of
+    // 30 games should still be undecided when the cap lands.
+    expect(outcomes.some((o) => o.hitRoundCap)).toBe(true);
+  });
+
+  it("derives each game's strategy seed from its index, so games do not share one RNG stream", () => {
+    // Game index 1 of a 2-game batch must behave exactly like a
+    // standalone 1-game batch seeded with the same setup seed and the
+    // same derived strategy seed (strategySeed + index * 1_000_000).
+    const combined = runBatch({
+      playerCount: 6,
+      seedStart: 1,
+      gameCount: 2,
+      strategySeed: 5,
+    });
+    const secondAlone = runBatch({
+      playerCount: 6,
+      seedStart: 2,
+      gameCount: 1,
+      strategySeed: 5 + 1_000_000,
+    });
+    expect(combined.outcomes[1]).toEqual(secondAlone.outcomes[0]);
+  });
 });

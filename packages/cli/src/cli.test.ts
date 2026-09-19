@@ -37,6 +37,22 @@ describe('runCli', () => {
   });
 
   describe('batch subcommand', () => {
+    it('prints help text and exits 0 for --help without requiring player-count/games', async () => {
+      const code = await runCli(['batch', '--help']);
+      expect(code).toBe(0);
+      const out = stdout.join('\n');
+      expect(out).toContain('Usage:');
+      expect(out).toContain('--player-count');
+      expect(out).toContain('Number of players');
+      expect(out).not.toContain('Number of teams');
+    });
+
+    it('prints help text for the -h short flag', async () => {
+      const code = await runCli(['batch', '-h']);
+      expect(code).toBe(0);
+      expect(stdout.join('\n')).toContain('Usage:');
+    });
+
     it('prints JSON with summary and outcomes on success', async () => {
       const code = await runCli([
         'batch',
@@ -119,7 +135,7 @@ describe('runCli', () => {
       expect(code).toBe(0);
       const out = stdout[0] ?? '';
       expect(out.split('\n')[0]).toBe(
-        'seed,winner,rounds,survivingTeams,totalDamageDealt,graveyardSize,soloTeams',
+        'seed,winner,rounds,survivingTeams,totalDamageDealt,graveyardSize,soloTeams,hitRoundCap',
       );
       expect(out.split('\n')).toHaveLength(3);
     });
