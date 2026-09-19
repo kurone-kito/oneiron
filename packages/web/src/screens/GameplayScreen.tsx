@@ -98,6 +98,15 @@ function controlsAreAllBot(
   return true;
 }
 
+function hasLivingHumanTeams(
+  state: RoundState,
+  controls: ReadonlyMap<TeamId, TeamControl>,
+): boolean {
+  return listLivingTeams(state).some(
+    (team) => controls.get(team.teamNumber)?.type !== 'bot',
+  );
+}
+
 export function GameplayScreen(props: GameplayScreenProps) {
   let session = createSession(props.initialState, props.config);
 
@@ -213,6 +222,18 @@ export function GameplayScreen(props: GameplayScreenProps) {
   function drive(
     humanInputs?: HumanInputs,
   ): 'awaiting' | 'round-done' | 'game-over' {
+    // Once the last human-controlled team is gone, a mixed configuration
+    // has no input boundary to wait for. Stop before synchronously simulating
+    // an unbounded bot-only tail; the existing no-winner terminal UI is the
+    // only useful state for the player at that point.
+    if (
+      !isAllBot() &&
+      !hasLivingHumanTeams(session.state, props.config.controls)
+    ) {
+      setPending(null);
+      setOver(true);
+      return 'game-over';
+    }
     let inputs = humanInputs;
     for (let i = 0; i < MAX_CONSECUTIVE_ROUND_ADVANCES; i++) {
       const result = session.step(inputs);
@@ -234,6 +255,14 @@ export function GameplayScreen(props: GameplayScreenProps) {
       }
       setPending(null);
       if (isGameOver(result.state)) {
+        setOver(true);
+        return 'game-over';
+      }
+      if (
+        !isAllBot() &&
+        !hasLivingHumanTeams(result.state, props.config.controls)
+      ) {
+        setPending(null);
         setOver(true);
         return 'game-over';
       }

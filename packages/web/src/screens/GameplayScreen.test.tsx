@@ -433,9 +433,15 @@ describe('GameplayScreen', () => {
       }),
     ]);
     const config = mixedConfigFor(initial, 1 as TeamId, 10);
+    const botBattleSpies = [...config.controls.values()]
+      .filter((control) => control.type === 'bot')
+      .map((control) => vi.spyOn(control.strategy, 'chooseBattlePlay'));
     render(() => <GameplayScreen initialState={initial} config={config} />);
 
     expect(screen.getByLabelText('Game over')).toBeTruthy();
+    expect(botBattleSpies.every((spy) => spy.mock.calls.length === 0)).toBe(
+      true,
+    );
   });
 
   describe('mobile layout', () => {
