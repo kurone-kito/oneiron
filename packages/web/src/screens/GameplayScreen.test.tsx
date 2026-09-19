@@ -393,6 +393,31 @@ describe('GameplayScreen', () => {
     }
   });
 
+  it('shows game over when a mixed session has no human input boundary', () => {
+    // A human-controlled team can be eliminated while bot teams remain
+    // alive. The static mixed configuration must not leave the screen
+    // without either an input panel or a terminal panel in that case.
+    const initial = stateWith([
+      makeTeam({
+        id: 1 as TeamId,
+        position: { x: 'fire', y: 'water' },
+        life: 0,
+      }),
+      makeTeam({
+        id: 2 as TeamId,
+        position: { x: 'water', y: 'wood' },
+      }),
+      makeTeam({
+        id: 3 as TeamId,
+        position: { x: 'wood', y: 'fire' },
+      }),
+    ]);
+    const config = mixedConfigFor(initial, 1 as TeamId, 10);
+    render(() => <GameplayScreen initialState={initial} config={config} />);
+
+    expect(screen.getByLabelText('Game over')).toBeTruthy();
+  });
+
   describe('mobile layout', () => {
     function mixedConfig(): {
       initial: ReturnType<typeof stateWith>;

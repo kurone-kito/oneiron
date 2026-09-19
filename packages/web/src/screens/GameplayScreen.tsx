@@ -238,7 +238,14 @@ export function GameplayScreen(props: GameplayScreenProps) {
       }
       inputs = undefined;
     }
-    return 'round-done';
+    // A mixed session can lose its last human-controlled team while
+    // leaving multiple bot teams alive. Since `isAllBot()` reflects the
+    // static configuration, the loop would otherwise leave the UI with
+    // neither an input panel nor an auto-play timer after the safety
+    // bound. Surface the existing no-winner terminal state instead.
+    setPending(null);
+    setOver(true);
+    return 'game-over';
   }
 
   onMount(() => {
