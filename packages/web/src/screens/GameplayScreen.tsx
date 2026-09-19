@@ -146,6 +146,11 @@ export function GameplayScreen(props: GameplayScreenProps) {
   >(new Map());
 
   function pushState(next: RoundState): void {
+    // A mixed session creates a fresh Session around the state returned at
+    // a round boundary. Its first step can immediately return the same
+    // state while awaiting human input; do not record that no-op probe as a
+    // second history frame.
+    if (history()[history().length - 1] === next) return;
     setHistory((frames) => [...frames, next]);
     setViewIndex(history().length - 1);
   }
@@ -192,7 +197,7 @@ export function GameplayScreen(props: GameplayScreenProps) {
 
   /**
    * Drives the session forward. Pushes a history frame after every
-   * `session.step` call so the replay UI can scrub through past
+   * distinct `session.step` state so the replay UI can scrub through past
    * states. Stops at the first awaiting request or at game-over.
    *
    * For all-bot sessions, stops after one round completes so the

@@ -373,6 +373,26 @@ describe('GameplayScreen', () => {
     expect(currentRound() as number).toBeGreaterThanOrEqual(3);
   });
 
+  it('does not record a duplicate frame at a mixed-session round boundary', () => {
+    const initial = setupGame({ playerCount: 4, seed: 1 }, DEFAULT_CONFIG);
+    const config = mixedConfigFor(initial, 1 as TeamId, 10);
+    render(() => <GameplayScreen initialState={initial} config={config} />);
+
+    for (let i = 0; i < 200 && (currentRound() ?? 0) < 2; i++) {
+      if (!submitWhicheverPanelIsShowing()) break;
+    }
+    expect(currentRound()).toBeGreaterThanOrEqual(2);
+
+    fireEvent.click(
+      screen.getByRole('button', { name: /Open auxiliary controls/i }),
+    );
+    fireEvent.click(screen.getByRole('button', { name: /Previous/ }));
+
+    // If the fresh session's immediate awaiting probe were recorded, the
+    // previous frame would be indistinguishable from the live round-2 state.
+    expect(currentRound()).toBeLessThan(2);
+  });
+
   it('always shows a phase input panel or the game-over panel after a submission', () => {
     // Companion invariant for #204: after every submission that does
     // not end the game, the screen must show either the next phase's
