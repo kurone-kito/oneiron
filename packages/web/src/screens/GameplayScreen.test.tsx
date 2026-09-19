@@ -10,6 +10,7 @@ import {
   type TeamControl,
   type TeamId,
   type TeamState,
+  type TeamStrategy,
 } from '@kurone-kito/oneiron-core';
 import { cleanup, fireEvent, render, screen } from '@solidjs/testing-library';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -454,6 +455,53 @@ describe('GameplayScreen', () => {
         0,
       );
       expect(callsAfterSecondRound).toBeGreaterThan(callsAfterFirstRound);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('stops a stalled mixed bot-only tail at the safety bound', async () => {
+    vi.useFakeTimers();
+    try {
+      const initial = stateWith([
+        makeTeam({
+          id: 1 as TeamId,
+          position: { x: 'fire', y: 'water' },
+          life: 0,
+        }),
+        makeTeam({
+          id: 2 as TeamId,
+          position: { x: 'water', y: 'wood' },
+        }),
+        makeTeam({
+          id: 3 as TeamId,
+          position: { x: 'wood', y: 'fire' },
+        }),
+      ]);
+      const stalledStrategy: TeamStrategy = {
+        chooseBattlePlay: () => ({ card: null }),
+        chooseTeamMove: () => null,
+        chooseRevivalAction: () => null,
+      };
+      const controls = new Map<TeamId, TeamControl>([
+        [1 as TeamId, { type: 'human' }],
+        [2 as TeamId, { type: 'bot', strategy: stalledStrategy }],
+        [3 as TeamId, { type: 'bot', strategy: stalledStrategy }],
+      ]);
+      render(() => (
+        <GameplayScreen
+          initialState={initial}
+          config={{ controls, gameConfig: DEFAULT_CONFIG }}
+        />
+      ));
+
+      expect(screen.queryByLabelText('Game over')).toBeNull();
+
+      // The empty deck and no-op strategy keep both bot teams alive. Advance
+      // through the 1,000-round safety bound without waiting in real time.
+      await vi.advanceTimersByTimeAsync(200_000);
+
+      expect(screen.getByLabelText('Game over')).toBeTruthy();
     } finally {
       vi.useRealTimers();
     }

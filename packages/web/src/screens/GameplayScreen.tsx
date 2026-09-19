@@ -122,6 +122,7 @@ export function GameplayScreen(props: GameplayScreenProps) {
   const [autoPlayDelayMs, setAutoPlayDelayMs] = createSignal(
     DEFAULT_AUTOPLAY_DELAY_MS,
   );
+  let mixedBotOnlyRoundAdvances = 0;
 
   const [drawerOpen, setDrawerOpen] = createSignal(false);
 
@@ -239,27 +240,36 @@ export function GameplayScreen(props: GameplayScreenProps) {
       }
 
       if (result.status === 'awaiting') {
+        mixedBotOnlyRoundAdvances = 0;
         setPending(result.request);
         resetFormsFor(result.request);
         return 'awaiting';
       }
       setPending(null);
       if (isGameOver(result.state)) {
+        mixedBotOnlyRoundAdvances = 0;
         setOver(true);
         return 'game-over';
       }
       session = createSession(result.state, props.config);
-      if (
-        isAllBot() ||
-        !hasLivingHumanTeams(result.state, props.config.controls)
-      ) {
+      const botOnlyConfiguration = isAllBot();
+      if (botOnlyConfiguration) {
+        return 'round-done';
+      }
+      if (!hasLivingHumanTeams(result.state, props.config.controls)) {
         // A mixed session can lose its last human-controlled team while
         // leaving multiple bot teams alive. Return after one round so the
         // auto-play timer can pace the bot-only tail instead of blocking the
         // browser in a long synchronous loop.
-        if (!isAllBot()) setAutoPlayActive(true);
+        mixedBotOnlyRoundAdvances += 1;
+        if (mixedBotOnlyRoundAdvances >= MAX_CONSECUTIVE_ROUND_ADVANCES) {
+          setOver(true);
+          return 'game-over';
+        }
+        setAutoPlayActive(true);
         return 'round-done';
       }
+      mixedBotOnlyRoundAdvances = 0;
       inputs = undefined;
     }
     // A session that never awaits input and never ends the game reached the
