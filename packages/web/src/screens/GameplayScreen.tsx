@@ -50,6 +50,11 @@ const MIN_AUTOPLAY_DELAY_MS = 0;
 const MAX_AUTOPLAY_DELAY_MS = 2000;
 const DEFAULT_AUTOPLAY_DELAY_MS = 200;
 const LOG_RETENTION = 500;
+// Safety bound for the auto-continue loop in `drive()`: a round that
+// never awaits input and never ends the game would otherwise spin the
+// browser. Generous enough for any real game; remove once #171 adds a
+// dedicated stalemate guard.
+const MAX_CONSECUTIVE_ROUND_ADVANCES = 1000;
 
 function listLivingTeams(state: RoundState): TeamState[] {
   const teams: TeamState[] = [];
@@ -93,6 +98,15 @@ function controlsAreAllBot(
   return true;
 }
 
+function hasLivingHumanTeams(
+  state: RoundState,
+  controls: ReadonlyMap<TeamId, TeamControl>,
+): boolean {
+  return listLivingTeams(state).some(
+    (team) => controls.get(team.teamNumber)?.type !== 'bot',
+  );
+}
+
 export function GameplayScreen(props: GameplayScreenProps) {
   let session = createSession(props.initialState, props.config);
 
@@ -108,6 +122,7 @@ export function GameplayScreen(props: GameplayScreenProps) {
   const [autoPlayDelayMs, setAutoPlayDelayMs] = createSignal(
     DEFAULT_AUTOPLAY_DELAY_MS,
   );
+  let mixedBotOnlyRoundAdvances = 0;
 
   const [drawerOpen, setDrawerOpen] = createSignal(false);
 
@@ -141,6 +156,11 @@ export function GameplayScreen(props: GameplayScreenProps) {
   >(new Map());
 
   function pushState(next: RoundState): void {
+    // A mixed session creates a fresh Session around the state returned at
+    // a round boundary. Its first step can immediately return the same
+    // state while awaiting human input; do not record that no-op probe as a
+    // second history frame.
+    if (history()[history().length - 1] === next) return;
     setHistory((frames) => [...frames, next]);
     setViewIndex(history().length - 1);
   }
@@ -187,10 +207,17 @@ export function GameplayScreen(props: GameplayScreenProps) {
 
   /**
    * Drives the session forward. Pushes a history frame after every
-   * `session.step` call so the replay UI can scrub through past
-   * states. Stops at the first awaiting request, at game-over, or
-   * once the round completes (so the auto-play loop can insert a
-   * delay between rounds).
+   * distinct `session.step` state so the replay UI can scrub through past
+   * states. Stops at the first awaiting request or at game-over.
+   *
+   * For all-bot sessions, stops after one round completes so the
+   * auto-play loop can insert its configured delay between rounds.
+   * For sessions with at least one living human-controlled team, there is no
+   * auto-play control to re-enter `drive()` after a round boundary, so
+   * it keeps stepping the freshly created session across round
+   * boundaries until a human decision is needed or the game ends. Once the
+   * last human team is eliminated, it switches to the paced bot-only
+   * auto-play path.
    *
    * Returns the terminal status so callers know whether to keep
    * ticking ('round-done') or wait for input ('awaiting' / 'game-over').
@@ -198,30 +225,59 @@ export function GameplayScreen(props: GameplayScreenProps) {
   function drive(
     humanInputs?: HumanInputs,
   ): 'awaiting' | 'round-done' | 'game-over' {
-    const result = session.step(humanInputs);
-    pushState(result.state);
-    if (result.log.length > 0) {
-      setLog((prev) => {
-        const merged = [...prev, ...result.log];
-        // Cap retention so long auto-play sessions don't unbounded-grow.
-        return merged.length > LOG_RETENTION
-          ? merged.slice(merged.length - LOG_RETENTION)
-          : merged;
-      });
-    }
+    let inputs = humanInputs;
+    for (let i = 0; i < MAX_CONSECUTIVE_ROUND_ADVANCES; i++) {
+      const result = session.step(inputs);
+      pushState(result.state);
+      if (result.log.length > 0) {
+        setLog((prev) => {
+          const merged = [...prev, ...result.log];
+          // Cap retention so long auto-play sessions don't unbounded-grow.
+          return merged.length > LOG_RETENTION
+            ? merged.slice(merged.length - LOG_RETENTION)
+            : merged;
+        });
+      }
 
-    if (result.status === 'awaiting') {
-      setPending(result.request);
-      resetFormsFor(result.request);
-      return 'awaiting';
+      if (result.status === 'awaiting') {
+        mixedBotOnlyRoundAdvances = 0;
+        setPending(result.request);
+        resetFormsFor(result.request);
+        return 'awaiting';
+      }
+      setPending(null);
+      if (isGameOver(result.state)) {
+        mixedBotOnlyRoundAdvances = 0;
+        setOver(true);
+        return 'game-over';
+      }
+      session = createSession(result.state, props.config);
+      const botOnlyConfiguration = isAllBot();
+      if (botOnlyConfiguration) {
+        return 'round-done';
+      }
+      if (!hasLivingHumanTeams(result.state, props.config.controls)) {
+        // A mixed session can lose its last human-controlled team while
+        // leaving multiple bot teams alive. Return after one round so the
+        // auto-play timer can pace the bot-only tail instead of blocking the
+        // browser in a long synchronous loop.
+        mixedBotOnlyRoundAdvances += 1;
+        if (mixedBotOnlyRoundAdvances >= MAX_CONSECUTIVE_ROUND_ADVANCES) {
+          setOver(true);
+          return 'game-over';
+        }
+        setAutoPlayActive(true);
+        return 'round-done';
+      }
+      mixedBotOnlyRoundAdvances = 0;
+      inputs = undefined;
     }
+    // A session that never awaits input and never ends the game reached the
+    // safety bound. Surface the existing no-winner terminal state rather
+    // than leaving the UI without an input or terminal panel.
     setPending(null);
-    if (isGameOver(result.state)) {
-      setOver(true);
-      return 'game-over';
-    }
-    session = createSession(result.state, props.config);
-    return 'round-done';
+    setOver(true);
+    return 'game-over';
   }
 
   onMount(() => {
