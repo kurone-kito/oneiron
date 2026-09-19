@@ -211,10 +211,12 @@ export function GameplayScreen(props: GameplayScreenProps) {
    *
    * For all-bot sessions, stops after one round completes so the
    * auto-play loop can insert its configured delay between rounds.
-   * For sessions with at least one human-controlled team, there is no
+   * For sessions with at least one living human-controlled team, there is no
    * auto-play control to re-enter `drive()` after a round boundary, so
    * it keeps stepping the freshly created session across round
-   * boundaries until a human decision is needed or the game ends.
+   * boundaries until a human decision is needed or the game ends. Once the
+   * last human team is eliminated, it switches to the paced bot-only
+   * auto-play path.
    *
    * Returns the terminal status so callers know whether to keep
    * ticking ('round-done') or wait for input ('awaiting' / 'game-over').
@@ -222,18 +224,6 @@ export function GameplayScreen(props: GameplayScreenProps) {
   function drive(
     humanInputs?: HumanInputs,
   ): 'awaiting' | 'round-done' | 'game-over' {
-    // Once the last human-controlled team is gone, a mixed configuration
-    // has no input boundary to wait for. Stop before synchronously simulating
-    // an unbounded bot-only tail; the existing no-winner terminal UI is the
-    // only useful state for the player at that point.
-    if (
-      !isAllBot() &&
-      !hasLivingHumanTeams(session.state, props.config.controls)
-    ) {
-      setPending(null);
-      setOver(true);
-      return 'game-over';
-    }
     let inputs = humanInputs;
     for (let i = 0; i < MAX_CONSECUTIVE_ROUND_ADVANCES; i++) {
       const result = session.step(inputs);
@@ -258,25 +248,23 @@ export function GameplayScreen(props: GameplayScreenProps) {
         setOver(true);
         return 'game-over';
       }
+      session = createSession(result.state, props.config);
       if (
-        !isAllBot() &&
+        isAllBot() ||
         !hasLivingHumanTeams(result.state, props.config.controls)
       ) {
-        setPending(null);
-        setOver(true);
-        return 'game-over';
-      }
-      session = createSession(result.state, props.config);
-      if (isAllBot()) {
+        // A mixed session can lose its last human-controlled team while
+        // leaving multiple bot teams alive. Return after one round so the
+        // auto-play timer can pace the bot-only tail instead of blocking the
+        // browser in a long synchronous loop.
+        if (!isAllBot()) setAutoPlayActive(true);
         return 'round-done';
       }
       inputs = undefined;
     }
-    // A mixed session can lose its last human-controlled team while
-    // leaving multiple bot teams alive. Since `isAllBot()` reflects the
-    // static configuration, the loop would otherwise leave the UI with
-    // neither an input panel nor an auto-play timer after the safety
-    // bound. Surface the existing no-winner terminal state instead.
+    // A session that never awaits input and never ends the game reached the
+    // safety bound. Surface the existing no-winner terminal state rather
+    // than leaving the UI without an input or terminal panel.
     setPending(null);
     setOver(true);
     return 'game-over';

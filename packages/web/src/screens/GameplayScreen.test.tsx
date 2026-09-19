@@ -413,35 +413,50 @@ describe('GameplayScreen', () => {
     }
   });
 
-  it('shows game over when a mixed session has no human input boundary', () => {
-    // A human-controlled team can be eliminated while bot teams remain
-    // alive. The static mixed configuration must not leave the screen
-    // without either an input panel or a terminal panel in that case.
-    const initial = stateWith([
-      makeTeam({
-        id: 1 as TeamId,
-        position: { x: 'fire', y: 'water' },
-        life: 0,
-      }),
-      makeTeam({
-        id: 2 as TeamId,
-        position: { x: 'water', y: 'wood' },
-      }),
-      makeTeam({
-        id: 3 as TeamId,
-        position: { x: 'wood', y: 'fire' },
-      }),
-    ]);
-    const config = mixedConfigFor(initial, 1 as TeamId, 10);
-    const botBattleSpies = [...config.controls.values()]
-      .filter((control) => control.type === 'bot')
-      .map((control) => vi.spyOn(control.strategy, 'chooseBattlePlay'));
-    render(() => <GameplayScreen initialState={initial} config={config} />);
+  it('paces bot-only rounds after the human team is eliminated', async () => {
+    vi.useFakeTimers();
+    try {
+      // A human-controlled team can be eliminated while bot teams remain
+      // alive. The mixed configuration should switch to paced bot-only
+      // auto-play rather than blocking the browser in a synchronous tail.
+      const initial = stateWith([
+        makeTeam({
+          id: 1 as TeamId,
+          position: { x: 'fire', y: 'water' },
+          life: 0,
+        }),
+        makeTeam({
+          id: 2 as TeamId,
+          position: { x: 'water', y: 'wood' },
+        }),
+        makeTeam({
+          id: 3 as TeamId,
+          position: { x: 'wood', y: 'fire' },
+        }),
+      ]);
+      const config = mixedConfigFor(initial, 1 as TeamId, 10);
+      const botBattleSpies = [...config.controls.values()]
+        .filter((control) => control.type === 'bot')
+        .map((control) => vi.spyOn(control.strategy, 'chooseBattlePlay'));
+      render(() => <GameplayScreen initialState={initial} config={config} />);
 
-    expect(screen.getByLabelText('Game over')).toBeTruthy();
-    expect(botBattleSpies.every((spy) => spy.mock.calls.length === 0)).toBe(
-      true,
-    );
+      expect(screen.queryByLabelText('Game over')).toBeNull();
+      const callsAfterFirstRound = botBattleSpies.reduce(
+        (total, spy) => total + spy.mock.calls.length,
+        0,
+      );
+      expect(callsAfterFirstRound).toBeGreaterThan(0);
+
+      await vi.advanceTimersByTimeAsync(200);
+
+      const callsAfterSecondRound = botBattleSpies.reduce(
+        (total, spy) => total + spy.mock.calls.length,
+        0,
+      );
+      expect(callsAfterSecondRound).toBeGreaterThan(callsAfterFirstRound);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   describe('mobile layout', () => {
