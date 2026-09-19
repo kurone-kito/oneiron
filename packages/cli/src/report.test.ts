@@ -12,6 +12,7 @@ function outcome(overrides: Partial<GameOutcome> = {}): GameOutcome {
     totalDamageDealt: overrides.totalDamageDealt ?? 0,
     graveyardSize: overrides.graveyardSize ?? 0,
     soloTeams: overrides.soloTeams ?? [],
+    hitRoundCap: overrides.hitRoundCap ?? false,
   };
 }
 
@@ -28,9 +29,32 @@ describe('summarise', () => {
     expect(summary.winsByTeam.get(1 as TeamId)).toBe(2);
     expect(summary.winsByTeam.get(2 as TeamId)).toBe(1);
     expect(summary.drawCount).toBe(1);
+    expect(summary.unfinishedCount).toBe(0);
     expect(summary.minRounds).toBe(5);
     expect(summary.maxRounds).toBe(50);
     expect(summary.avgRounds).toBeCloseTo((5 + 7 + 10 + 50) / 4, 5);
+  });
+
+  it('reports zero genuine draws and a full unfinished count when every game hits the round cap', () => {
+    const outcomes = [
+      outcome({ seed: 1, winner: null, rounds: 50, hitRoundCap: true }),
+      outcome({ seed: 2, winner: null, rounds: 50, hitRoundCap: true }),
+      outcome({ seed: 3, winner: null, rounds: 50, hitRoundCap: true }),
+    ];
+    const summary = summarise(outcomes);
+    expect(summary.drawCount).toBe(0);
+    expect(summary.unfinishedCount).toBe(3);
+  });
+
+  it('reports zero unfinished when every game ends by elimination', () => {
+    const outcomes = [
+      outcome({ seed: 1, winner: 1 as TeamId, rounds: 5, hitRoundCap: false }),
+      outcome({ seed: 2, winner: 2 as TeamId, rounds: 8, hitRoundCap: false }),
+      outcome({ seed: 3, winner: null, rounds: 12, hitRoundCap: false }),
+    ];
+    const summary = summarise(outcomes);
+    expect(summary.unfinishedCount).toBe(0);
+    expect(summary.drawCount).toBe(1);
   });
 
   it('returns null soloTeamWinRate when no solo team appears', () => {
@@ -67,6 +91,7 @@ describe('summarise', () => {
     const summary = summarise([]);
     expect(summary.games).toBe(0);
     expect(summary.drawCount).toBe(0);
+    expect(summary.unfinishedCount).toBe(0);
     expect(summary.minRounds).toBe(0);
     expect(summary.maxRounds).toBe(0);
     expect(summary.avgRounds).toBe(0);
@@ -79,14 +104,19 @@ describe('formatJson', () => {
     const summary = summarise([
       outcome({ winner: 1 as TeamId, rounds: 4 }),
       outcome({ winner: 1 as TeamId, rounds: 6 }),
+      outcome({ winner: null, rounds: 50, hitRoundCap: true }),
     ]);
     const json = formatJson(summary);
     const parsed = JSON.parse(json) as {
       games: number;
       winsByTeam: Record<string, number>;
+      drawCount: number;
+      unfinishedCount: number;
     };
-    expect(parsed.games).toBe(2);
+    expect(parsed.games).toBe(3);
     expect(parsed.winsByTeam['1']).toBe(2);
+    expect(parsed.drawCount).toBe(0);
+    expect(parsed.unfinishedCount).toBe(1);
   });
 });
 
@@ -102,16 +132,16 @@ describe('formatCsv', () => {
         graveyardSize: 12,
         soloTeams: [1 as TeamId, 2 as TeamId],
       }),
-      outcome({ seed: 2, winner: null, rounds: 50 }),
+      outcome({ seed: 2, winner: null, rounds: 50, hitRoundCap: true }),
     ];
     const csv = formatCsv(outcomes);
     const lines = csv.split('\n');
     expect(lines[0]).toBe(
-      'seed,winner,rounds,survivingTeams,totalDamageDealt,graveyardSize,soloTeams',
+      'seed,winner,rounds,survivingTeams,totalDamageDealt,graveyardSize,soloTeams,hitRoundCap',
     );
     expect(lines).toHaveLength(3);
-    expect(lines[1]).toBe('1,1,5,1,3,12,1 2');
-    expect(lines[2]).toBe('2,,50,,0,0,');
+    expect(lines[1]).toBe('1,1,5,1,3,12,1 2,false');
+    expect(lines[2]).toBe('2,,50,,0,0,,true');
   });
 });
 
@@ -129,6 +159,19 @@ describe('formatMarkdown', () => {
     expect(md).toContain('## Card economy');
     expect(md).toMatch(/\| 1 \| 1 \| 33\.33% \|/);
     expect(md).toMatch(/\| 2 \| 1 \| 33\.33% \|/);
+  });
+
+  it('reports the unfinished (round-cap) count separately from draws', () => {
+    const summary = summarise([
+      outcome({ winner: 1 as TeamId, rounds: 5 }),
+      outcome({ winner: null, rounds: 50, hitRoundCap: true }),
+      outcome({ winner: null, rounds: 50, hitRoundCap: true }),
+    ]);
+    const md = formatMarkdown(summary);
+    expect(md).toContain('**Draws**: 0 (0.00% of games)');
+    expect(md).toContain(
+      '**Unfinished** (hit the round cap): 2 (66.67% of games)',
+    );
   });
 
   it('notes the absence of solo teams when none are present', () => {

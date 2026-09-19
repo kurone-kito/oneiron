@@ -4,7 +4,10 @@ import type { GameOutcome } from './batch.ts';
 export type BatchSummary = {
   readonly games: number;
   readonly winsByTeam: ReadonlyMap<TeamId, number>;
+  /** Games that ended with zero teams alive (a genuine mutual elimination). */
   readonly drawCount: number;
+  /** Games that hit `maxRoundsPerGame` before `isGameOver` — not draws. */
+  readonly unfinishedCount: number;
   readonly avgRounds: number;
   readonly minRounds: number;
   readonly maxRounds: number;
@@ -25,6 +28,7 @@ export function summarise(outcomes: readonly GameOutcome[]): BatchSummary {
   const games = outcomes.length;
   const winsByTeam = new Map<TeamId, number>();
   let drawCount = 0;
+  let unfinishedCount = 0;
   let minRounds = Number.POSITIVE_INFINITY;
   let maxRounds = 0;
   let soloGames = 0;
@@ -41,7 +45,11 @@ export function summarise(outcomes: readonly GameOutcome[]): BatchSummary {
     if (outcome.rounds > maxRounds) maxRounds = outcome.rounds;
 
     if (outcome.winner === null) {
-      drawCount += 1;
+      if (outcome.hitRoundCap) {
+        unfinishedCount += 1;
+      } else {
+        drawCount += 1;
+      }
     } else {
       winsByTeam.set(outcome.winner, (winsByTeam.get(outcome.winner) ?? 0) + 1);
     }
@@ -61,6 +69,7 @@ export function summarise(outcomes: readonly GameOutcome[]): BatchSummary {
     games,
     winsByTeam,
     drawCount,
+    unfinishedCount,
     avgRounds: average(rounds),
     minRounds: games === 0 ? 0 : minRounds,
     maxRounds,
@@ -77,6 +86,7 @@ function summaryToSerializable(summary: BatchSummary): Record<string, unknown> {
       [...summary.winsByTeam.entries()].sort(([a], [b]) => a - b),
     ),
     drawCount: summary.drawCount,
+    unfinishedCount: summary.unfinishedCount,
     avgRounds: summary.avgRounds,
     minRounds: summary.minRounds,
     maxRounds: summary.maxRounds,
@@ -104,6 +114,7 @@ export function formatCsv(outcomes: readonly GameOutcome[]): string {
     'totalDamageDealt',
     'graveyardSize',
     'soloTeams',
+    'hitRoundCap',
   ].join(',');
   const lines = [header];
   for (const outcome of outcomes) {
@@ -116,6 +127,7 @@ export function formatCsv(outcomes: readonly GameOutcome[]): string {
         csvCell(outcome.totalDamageDealt),
         csvCell(outcome.graveyardSize),
         csvCell(outcome.soloTeams.join(' ')),
+        csvCell(String(outcome.hitRoundCap)),
       ].join(','),
     );
   }
@@ -133,6 +145,8 @@ function formatNumber(value: number, digits = 2): string {
 export function formatMarkdown(summary: BatchSummary): string {
   const drawPercent =
     summary.games === 0 ? 0 : summary.drawCount / summary.games;
+  const unfinishedPercent =
+    summary.games === 0 ? 0 : summary.unfinishedCount / summary.games;
   const lines: string[] = [];
   lines.push('# Batch summary', '');
   lines.push(`- **Games**: ${summary.games}`);
@@ -141,6 +155,9 @@ export function formatMarkdown(summary: BatchSummary): string {
   );
   lines.push(
     `- **Draws**: ${summary.drawCount} (${formatPercent(drawPercent)} of games)`,
+  );
+  lines.push(
+    `- **Unfinished** (hit the round cap): ${summary.unfinishedCount} (${formatPercent(unfinishedPercent)} of games)`,
   );
   lines.push('', '## Win rates by team number', '');
   lines.push('| Team | Wins | Win rate |');

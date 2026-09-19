@@ -34,6 +34,13 @@ function listAllTeams(state: RoundState): TeamState[] {
 
 const DEFAULT_MAX_ROUNDS_PER_GAME = 50;
 const DEFAULT_STRATEGY_SEED = 0;
+/**
+ * Added to `strategySeed` for each game's index within a batch, so that
+ * every game samples its own bot-strategy RNG stream instead of all
+ * games in a batch replaying the same one. Large enough that it never
+ * overlaps a per-team offset (`strategySeed + teamNumber`).
+ */
+const STRATEGY_SEED_GAME_STRIDE = 1_000_000;
 
 export type BatchInput = {
   readonly playerCount: number;
@@ -57,6 +64,14 @@ export type GameOutcome = {
    * solo-team win rates without a separate setup snapshot.
    */
   readonly soloTeams: readonly TeamId[];
+  /**
+   * True when the loop stopped because it reached `maxRoundsPerGame`
+   * before `isGameOver` became true. Such a game is unfinished, not a
+   * genuine draw: `winner` is `null` either way (a draw has zero teams
+   * alive; an unfinished game still has more than one), so callers must
+   * check this flag to tell the two apart.
+   */
+  readonly hitRoundCap: boolean;
 };
 
 export type BatchOutput = {
@@ -147,7 +162,8 @@ export function runBatch(input: BatchInput): BatchOutput {
       { playerCount: input.playerCount, seed },
       gameConfig,
     );
-    const strategies = buildStrategies(initial, strategySeed);
+    const gameStrategySeed = strategySeed + i * STRATEGY_SEED_GAME_STRIDE;
+    const strategies = buildStrategies(initial, gameStrategySeed);
     const inputProvider = makeInputProvider(strategies);
     const soloTeams = listAllTeams(initial)
       .filter((team) => team.players.length === 1)
@@ -179,6 +195,7 @@ export function runBatch(input: BatchInput): BatchOutput {
       totalDamageDealt,
       graveyardSize: current.graveyard?.length ?? 0,
       soloTeams,
+      hitRoundCap: !isGameOver(current),
     });
   }
 
