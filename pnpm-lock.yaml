@@ -32,8 +32,8 @@ importers:
         specifier: ^0.23.0
         version: 0.23.0(cspell@10.3.5)
       '@kurone-kito/lint-staged-config':
-        specifier: ^0.23.0-alpha.1
-        version: 0.23.0-alpha.1(cspell@10.3.5)(lint-staged@17.6.0)
+        specifier: ^0.23.0
+        version: 0.23.0(@biomejs/biome@2.5.14)(cspell@10.3.5)(lint-staged@17.6.0)
       '@kurone-kito/markdownlint-config':
         specifier: ^0.23.0
         version: 0.23.0(markdownlint-cli2@0.23.3)
@@ -1232,13 +1232,16 @@ packages:
       cspell:
         optional: true
 
-  '@kurone-kito/lint-staged-config@0.23.0-alpha.1':
-    resolution: {integrity: sha512-cbhWs40pak7yiciVsocbi74g8PU0/agnRw0tYyvmUfGOQ9Rx7XxJh8z9zN6nCkfX6rnuznEoF2eLFtlkgZPtSg==}
-    engines: {node: ^20.18 || ^22 || >=24}
+  '@kurone-kito/lint-staged-config@0.23.0':
+    resolution: {integrity: sha512-f9U9uls4Z1iXXuqH6Zprxl9zJACRFkgnJx7vmf1yEm1zWB/LCx+vsfIXU5isVEiVFs+swSXUmX9onwS01yiVGg==}
+    engines: {node: ^22.23.2 || ^24.2.0 || >=26.0.0}
     peerDependencies:
-      cspell: '>=5.7.x'
+      '@biomejs/biome': '>=2.3.9'
+      cspell: '>=8.x.x'
       lint-staged: '>=12.1.0'
     peerDependenciesMeta:
+      '@biomejs/biome':
+        optional: true
       cspell:
         optional: true
       lint-staged:
@@ -4937,8 +4940,9 @@ snapshots:
     optionalDependencies:
       cspell: 10.3.5
 
-  '@kurone-kito/lint-staged-config@0.23.0-alpha.1(cspell@10.3.5)(lint-staged@17.6.0)':
+  '@kurone-kito/lint-staged-config@0.23.0(@biomejs/biome@2.5.14)(cspell@10.3.5)(lint-staged@17.6.0)':
     optionalDependencies:
+      '@biomejs/biome': 2.5.14
       cspell: 10.3.5
       lint-staged: 17.6.0
 

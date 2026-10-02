@@ -39,7 +39,7 @@
     "@kurone-kito/biome-config": "^0.23.0-alpha.1",
     "@kurone-kito/commitlint-config": "^0.23.0",
     "@kurone-kito/cspell-config": "^0.23.0",
-    "@kurone-kito/lint-staged-config": "^0.23.0-alpha.1",
+    "@kurone-kito/lint-staged-config": "^0.23.0",
     "@kurone-kito/markdownlint-config": "^0.23.0",
     "@kurone-kito/typescript-config": "^0.22.0-alpha.9",
     "@vitest/coverage-v8": "^4.1.11",
