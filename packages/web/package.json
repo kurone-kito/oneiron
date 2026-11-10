@@ -27,14 +27,14 @@
   },
   "dependencies": {
     "@kurone-kito/oneiron-core": "workspace:*",
-    "solid-js": "^1.9.15"
+    "solid-js": "^1.9.18"
   },
   "devDependencies": {
     "@solidjs/testing-library": "^0.8.10",
     "happy-dom": "^21.0.4",
-    "vite": "^8.3.3",
+    "vite": "^8.3.6",
     "vite-plugin-pwa": "^2.0.0",
-    "vite-plugin-solid": "^2.11.14",
+    "vite-plugin-solid": "^2.11.15",
     "vitest": "^4.1.11"
   }
 }
