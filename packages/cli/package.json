@@ -38,7 +38,7 @@
     "@kurone-kito/oneiron-core": "workspace:*"
   },
   "devDependencies": {
-    "@kurone-kito/typescript-config": "^0.22.0-alpha.9",
+    "@kurone-kito/typescript-config": "^0.22.0",
     "rimraf": "^6.0.1",
     "tsx": "^4.23.15"
   }
