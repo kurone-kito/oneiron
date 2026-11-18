@@ -36,7 +36,7 @@
     "@commitlint/cli": "^21.2.3",
     "@commitlint/config-conventional": "^21.2.3",
     "@cspell/cspell-types": "^10.3.5",
-    "@kurone-kito/biome-config": "^0.23.0-alpha.1",
+    "@kurone-kito/biome-config": "^0.23.0",
     "@kurone-kito/commitlint-config": "^0.23.0",
     "@kurone-kito/cspell-config": "^0.23.0",
     "@kurone-kito/lint-staged-config": "^0.23.0",

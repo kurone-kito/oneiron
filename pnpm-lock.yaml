@@ -23,8 +23,8 @@ importers:
         specifier: ^10.3.5
         version: 10.3.5
       '@kurone-kito/biome-config':
-        specifier: ^0.23.0-alpha.1
-        version: 0.23.0-alpha.1(@biomejs/biome@2.5.14)
+        specifier: ^0.23.0
+        version: 0.23.0(@biomejs/biome@2.5.14)
       '@kurone-kito/commitlint-config':
         specifier: ^0.23.0
         version: 0.23.0(@commitlint/config-conventional@21.2.3)
@@ -1244,11 +1244,11 @@ packages:
   '@jridgewell/trace-mapping@0.3.31':
     resolution: {integrity: sha512-zzNR+SdQSDJzc8joaeP8QQoCQr8NuYx2dIIytl1QeBEZHJ9uW6hebsrYgbz8hJwUQao3TWCMtmfV8Nu1twOLAw==}
 
-  '@kurone-kito/biome-config@0.23.0-alpha.1':
-    resolution: {integrity: sha512-NhGYAYWSGgYFEX1pDrmfTvJfPBGKObs7YvdvEgV07GIlglyHKSlhb6zRmxG/90JNHfG/fwFHnBbmtr7KCmS+NQ==}
-    engines: {node: ^20.18 || ^22 || >=24}
+  '@kurone-kito/biome-config@0.23.0':
+    resolution: {integrity: sha512-tLkvSHluUypI4wEOdm1KOT2m+fwTTTVNjln6vpAhznDFyQJEe6/BBcG/e1oegQL5eeA8hDlKVHYzFNvgY5+tmA==}
+    engines: {node: ^22.23.2 || ^24.2.0 || >=26.0.0}
     peerDependencies:
-      '@biomejs/biome': '>=2.4.x'
+      '@biomejs/biome': '>=2.3.9'
     peerDependenciesMeta:
       '@biomejs/biome':
         optional: true
@@ -5053,7 +5053,7 @@ snapshots:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.6.0
 
-  '@kurone-kito/biome-config@0.23.0-alpha.1(@biomejs/biome@2.5.14)':
+  '@kurone-kito/biome-config@0.23.0(@biomejs/biome@2.5.14)':
     optionalDependencies:
       '@biomejs/biome': 2.5.14
 
